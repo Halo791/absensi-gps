@@ -130,6 +130,18 @@ npm install
 npm run dev
 ```
 
+Jika backend tidak berjalan di lokal default, buat file `.env` di folder `frontend`:
+
+```bash
+VITE_API_BASE_URL=http://localhost:4000/api
+```
+
+Lalu jalankan:
+
+```bash
+npm run dev
+```
+
 Frontend berjalan di `http://localhost:5173`.
 
 ## Deploy ke Netlify
@@ -193,6 +205,8 @@ Set variable berikut di Netlify:
 VITE_API_BASE_URL=https://URL-BACKEND-ANDA/api
 ```
 
+Template lokal tersedia di [frontend/.env.example](/Users/macbookpro/Downloads/project/frontend/.env.example).
+
 ### Langkah deploy frontend ke Netlify
 
 1. Push project ini ke GitHub.
@@ -206,6 +220,14 @@ VITE_API_BASE_URL=https://URL-BACKEND-ANDA/api
 6. Tambahkan environment variable `VITE_API_BASE_URL`.
 7. Pastikan `VITE_API_BASE_URL` mengarah ke URL Render backend Anda, misalnya `https://attendance-demo-backend.onrender.com/api`.
 8. Deploy.
+
+### Urutan deploy yang disarankan
+
+1. Deploy backend ke Render lebih dulu.
+2. Cek `https://URL-BACKEND/api/health`.
+3. Ambil URL backend final dari Render.
+4. Pasang URL itu ke `VITE_API_BASE_URL` di Netlify.
+5. Deploy frontend ke Netlify.
 
 ### Kenapa backend belum saya arahkan ke Netlify
 
