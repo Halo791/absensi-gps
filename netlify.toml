@@ -9,7 +9,6 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  included_files = ["backend/schema.sql"]
 
 [[redirects]]
   from = "/api"
