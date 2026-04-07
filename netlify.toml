@@ -2,6 +2,10 @@
   command = "npm run build"
   publish = "frontend/dist"
 
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--include=optional"
+
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
