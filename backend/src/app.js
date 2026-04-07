@@ -62,6 +62,18 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, mode: "demo", database: "postgres", runtime: "netlify-function-ready" });
 });
 
+app.get("/api", (_req, res) => {
+  res.json({
+    ok: true,
+    message: "API attendance demo aktif.",
+    endpoints: {
+      health: "/api/health",
+      demoAdmin: "/api/auth/demo/admin",
+      demoEmployee: "/api/auth/demo/employee"
+    }
+  });
+});
+
 app.post(
   "/api/auth/login",
   asyncRoute(async (req, res) => {
