@@ -4,10 +4,25 @@ import { ensureDemoData } from "../../backend/src/bootstrap.js";
 
 const proxy = serverless(app);
 
+function normalizeApiPath(event) {
+  const rawPath = event.rawUrl ? new URL(event.rawUrl).pathname : event.path || "";
+
+  if (rawPath.startsWith("/api")) {
+    return rawPath;
+  }
+
+  if (rawPath.startsWith("/.netlify/functions/api")) {
+    const rewritten = rawPath.replace("/.netlify/functions/api", "/api");
+    return rewritten || "/api";
+  }
+
+  const splat = event.pathParameters?.splat || "";
+  return splat ? `/api/${splat}` : "/api";
+}
+
 export async function handler(event, context) {
   await ensureDemoData();
-  const splat = event.pathParameters?.splat || "";
-  const normalizedPath = splat ? `/api/${splat}` : "/api";
+  const normalizedPath = normalizeApiPath(event);
   return proxy(
     {
       ...event,
