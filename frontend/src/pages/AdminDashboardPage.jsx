@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { SectionCard } from "../components/SectionCard";
 import { StatCard } from "../components/StatCard";
 import { api } from "../lib/api";
@@ -17,7 +16,13 @@ export function AdminDashboardPage() {
 
   const chartData = data.monthlyTrend.map((item) => ({
     date: item.date.slice(8),
-    value: item.status === "late" ? 2 : item.status === "present" || item.status === "checked_in" ? 3 : 1
+    label:
+      item.status === "late"
+        ? "Terlambat"
+        : item.status === "present" || item.status === "checked_in"
+          ? "Hadir"
+          : "Lainnya",
+    value: item.status === "late" ? 60 : item.status === "present" || item.status === "checked_in" ? 100 : 35
   }));
 
   return (
@@ -31,16 +36,31 @@ export function AdminDashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <SectionCard title="Grafik Kehadiran Bulan Ini" description="Visual sederhana untuk present, late, atau status lain.">
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#2563eb" radius={[10, 10, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-4">
+            {chartData.length ? (
+              chartData.map((item) => (
+                <div key={`${item.date}-${item.label}`} className="grid gap-2 md:grid-cols-[56px_1fr_90px] md:items-center">
+                  <span className="text-sm font-medium text-slate-500">#{item.date}</span>
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full ${
+                        item.label === "Hadir"
+                          ? "bg-emerald-500"
+                          : item.label === "Terlambat"
+                            ? "bg-orange-400"
+                            : "bg-slate-400"
+                      }`}
+                      style={{ width: `${item.value}%` }}
+                    />
+                  </div>
+                  <span className="text-sm text-slate-600">{item.label}</span>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                Belum ada data kehadiran bulan ini.
+              </div>
+            )}
           </div>
         </SectionCard>
 
