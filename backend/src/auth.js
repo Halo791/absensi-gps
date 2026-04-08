@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
-
-const SECRET = "attendance-demo-secret";
+import { jwtSecret } from "./config.js";
 
 export function signToken(user) {
   return jwt.sign(
@@ -10,7 +9,7 @@ export function signToken(user) {
       nik: user.nik,
       name: user.name
     },
-    SECRET,
+    jwtSecret,
     { expiresIn: "8h" }
   );
 }
@@ -22,7 +21,7 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(header.replace("Bearer ", ""), SECRET);
+    const payload = jwt.verify(header.replace("Bearer ", ""), jwtSecret);
     req.auth = payload;
     next();
   } catch (error) {

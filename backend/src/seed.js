@@ -1,7 +1,9 @@
+import { isDemoMode } from "./config.js";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import { DEFAULT_SETTINGS, DEMO_ADMIN, DEMO_EMPLOYEE } from "./constants.js";
 import { closePool, migrate, query } from "./db.js";
+import { AppError } from "./errors.js";
 
 async function upsertSetting(key, value) {
   await query(
@@ -63,6 +65,9 @@ async function seedAttendance(employeeId) {
 }
 
 export async function resetDemoData() {
+  if (!isDemoMode) {
+    throw new AppError("Demo mode tidak aktif di environment ini.", 403);
+  }
   await migrate();
   await query(`
     TRUNCATE TABLE overtime_requests, leave_requests, attendance, shifts, settings, users

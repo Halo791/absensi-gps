@@ -20,6 +20,16 @@ Fokus utama implementasi ini ada pada:
 - Auth: JWT
 - Chart: Recharts
 
+## Peningkatan Kesiapan Produksi
+
+Versi repo ini sekarang sudah ditingkatkan pada area berikut:
+
+- JWT secret dibaca dari environment variable, bukan hardcoded
+- endpoint demo hanya aktif saat `DEMO_MODE=true`
+- payload API divalidasi sebelum masuk ke database
+- export CSV memakai escaping aman untuk koma dan tanda kutip
+- tersedia script verifikasi cepat untuk backend syntax dan frontend build
+
 ## Struktur Folder
 
 ```text
@@ -102,12 +112,15 @@ Login demo melalui tombol akan me-reset data demo ke kondisi default agar aman u
 DATABASE_URL=postgresql://USER:PASSWORD@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
 DATABASE_SSL=true
 PORT=4000
+JWT_SECRET=ganti-dengan-secret-yang-panjang-dan-unik
+DEMO_MODE=true
 ```
 
 Catatan:
 
 - `sslmode=require` lazim dipakai pada connection string Neon.
 - Backend sekarang membaca `DATABASE_URL` langsung, jadi perubahan ini berlaku untuk lokal maupun deployment.
+- Untuk production, set `DEMO_MODE=false` agar endpoint reset/login demo nonaktif.
 
 ## Cara Menjalankan Lokal
 
@@ -144,6 +157,16 @@ npm run dev
 
 Frontend berjalan di `http://localhost:5173`.
 
+### Verifikasi cepat
+
+Dari root project:
+
+```bash
+npm run verify
+```
+
+Perintah ini akan memeriksa syntax backend dan build frontend.
+
 ## Deploy ke Netlify
 
 Project ini sekarang siap dideploy penuh ke Netlify dengan file [netlify.toml](/Users/macbookpro/Downloads/project/netlify.toml), sementara database tetap di Neon.
@@ -163,6 +186,8 @@ DATABASE_URL=postgresql://USER:PASSWORD@ep-xxxx.us-east-1.aws.neon.tech/neondb?s
 DATABASE_SSL=true
 ALLOWED_ORIGIN=https://NAMA-SITE-NETLIFY.netlify.app
 VITE_API_BASE_URL=/api
+JWT_SECRET=ganti-dengan-secret-yang-panjang-dan-unik
+DEMO_MODE=false
 ```
 
 Template lokal tersedia di [frontend/.env.example](/Users/macbookpro/Downloads/project/frontend/.env.example).

@@ -2,11 +2,26 @@ import { useEffect, useState } from "react";
 import { clearSession, getDemoNotice } from "../lib/session";
 import { api } from "../lib/api";
 
+function formatDateInput(date) {
+  return date.toISOString().slice(0, 10);
+}
+
 export function EmployeePage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [leaveForm, setLeaveForm] = useState({
+    type: "leave",
+    startDate: formatDateInput(new Date()),
+    endDate: formatDateInput(new Date()),
+    reason: ""
+  });
+  const [overtimeForm, setOvertimeForm] = useState({
+    date: formatDateInput(new Date()),
+    startTime: "18:00",
+    endTime: "20:00",
+    reason: ""
+  });
 
   function load() {
     api.get("/employee/dashboard").then(setData);
@@ -53,25 +68,31 @@ export function EmployeePage() {
 
 
   async function submitLeave() {
-    await api.post("/employee/leave-requests", {
-      type: "leave",
-      startDate: "2026-04-12",
-      endDate: "2026-04-12",
-      reason: "Keperluan keluarga"
-    });
-    setMessage("Permintaan izin berhasil dikirim.");
-    load();
+    try {
+      setLoading(true);
+      await api.post("/employee/leave-requests", leaveForm);
+      setMessage("Permintaan izin berhasil dikirim.");
+      setLeaveForm((current) => ({ ...current, reason: "" }));
+      load();
+    } catch (error) {
+      setMessage(error.message || "Gagal mengirim permintaan izin.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function submitOvertime() {
-    await api.post("/employee/overtime-requests", {
-      date: "2026-04-08",
-      startTime: "18:00",
-      endTime: "20:00",
-      reason: "Closing operasional"
-    });
-    setMessage("Permintaan lembur berhasil dikirim.");
-    load();
+    try {
+      setLoading(true);
+      await api.post("/employee/overtime-requests", overtimeForm);
+      setMessage("Permintaan lembur berhasil dikirim.");
+      setOvertimeForm((current) => ({ ...current, reason: "" }));
+      load();
+    } catch (error) {
+      setMessage(error.message || "Gagal mengirim permintaan lembur.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (!data) {
@@ -113,13 +134,86 @@ export function EmployeePage() {
 
         <div className="rounded-[2rem] bg-white p-6 shadow-panel">
           <h2 className="text-xl font-semibold text-slate-900">Aksi HR Umum</h2>
-          <div className="mt-4 grid gap-3">
-            <button type="button" onClick={submitLeave} className="rounded-2xl bg-orange-400 px-4 py-3 font-medium text-slate-950">
-              Ajukan Izin / Sakit
-            </button>
-            <button type="button" onClick={submitOvertime} className="rounded-2xl bg-slate-950 px-4 py-3 font-medium text-white">
-              Ajukan Lembur
-            </button>
+          <div className="mt-4 grid gap-5">
+            <div className="rounded-3xl border border-slate-200 p-4">
+              <p className="font-medium text-slate-900">Ajukan Izin / Sakit</p>
+              <div className="mt-3 grid gap-3">
+                <select
+                  className="rounded-2xl border border-slate-200 px-4 py-3"
+                  value={leaveForm.type}
+                  onChange={(event) => setLeaveForm((current) => ({ ...current, type: event.target.value }))}
+                >
+                  <option value="leave">Izin</option>
+                  <option value="sick">Sakit</option>
+                </select>
+                <input
+                  type="date"
+                  className="rounded-2xl border border-slate-200 px-4 py-3"
+                  value={leaveForm.startDate}
+                  onChange={(event) => setLeaveForm((current) => ({ ...current, startDate: event.target.value }))}
+                />
+                <input
+                  type="date"
+                  className="rounded-2xl border border-slate-200 px-4 py-3"
+                  value={leaveForm.endDate}
+                  onChange={(event) => setLeaveForm((current) => ({ ...current, endDate: event.target.value }))}
+                />
+                <textarea
+                  className="min-h-24 rounded-2xl border border-slate-200 px-4 py-3"
+                  placeholder="Tuliskan alasan izin atau sakit"
+                  value={leaveForm.reason}
+                  onChange={(event) => setLeaveForm((current) => ({ ...current, reason: event.target.value }))}
+                />
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={submitLeave}
+                  className="rounded-2xl bg-orange-400 px-4 py-3 font-medium text-slate-950 disabled:opacity-60"
+                >
+                  Kirim Izin / Sakit
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 p-4">
+              <p className="font-medium text-slate-900">Ajukan Lembur</p>
+              <div className="mt-3 grid gap-3">
+                <input
+                  type="date"
+                  className="rounded-2xl border border-slate-200 px-4 py-3"
+                  value={overtimeForm.date}
+                  onChange={(event) => setOvertimeForm((current) => ({ ...current, date: event.target.value }))}
+                />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input
+                    type="time"
+                    className="rounded-2xl border border-slate-200 px-4 py-3"
+                    value={overtimeForm.startTime}
+                    onChange={(event) => setOvertimeForm((current) => ({ ...current, startTime: event.target.value }))}
+                  />
+                  <input
+                    type="time"
+                    className="rounded-2xl border border-slate-200 px-4 py-3"
+                    value={overtimeForm.endTime}
+                    onChange={(event) => setOvertimeForm((current) => ({ ...current, endTime: event.target.value }))}
+                  />
+                </div>
+                <textarea
+                  className="min-h-24 rounded-2xl border border-slate-200 px-4 py-3"
+                  placeholder="Tuliskan alasan lembur"
+                  value={overtimeForm.reason}
+                  onChange={(event) => setOvertimeForm((current) => ({ ...current, reason: event.target.value }))}
+                />
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={submitOvertime}
+                  className="rounded-2xl bg-slate-950 px-4 py-3 font-medium text-white disabled:opacity-60"
+                >
+                  Kirim Lembur
+                </button>
+              </div>
+            </div>
           </div>
           <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
             Reminder absen, validasi GPS, cutoff alpha, dan selfie wajib sudah disiapkan sebagai konfigurasi backend demo.
