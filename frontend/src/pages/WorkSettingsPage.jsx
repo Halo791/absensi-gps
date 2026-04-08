@@ -12,17 +12,38 @@ const defaultShift = {
   isActive: true
 };
 
+function createShift() {
+  return { ...defaultShift };
+}
+
 export function WorkSettingsPage() {
   const [form, setForm] = useState(null);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get("/admin/settings").then((settings) => {
-      setForm({
-        ...settings.workSchedule,
-        shifts: settings.shifts?.length ? settings.shifts : [defaultShift]
-      });
-    });
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const settings = await api.get("/admin/settings");
+        if (cancelled) return;
+        setForm({
+          ...settings.workSchedule,
+          shifts: settings.shifts?.length ? settings.shifts : [createShift()]
+        });
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError.message || "Gagal memuat pengaturan jam kerja.");
+        }
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function updateSingleShift(field, value) {
@@ -45,16 +66,30 @@ export function WorkSettingsPage() {
   }
 
   async function saveChanges() {
-    const payload = {
-      ...form,
-      shifts: form.type === "multi" ? form.shifts : []
-    };
-    const response = await api.put("/admin/settings/work", payload);
-    setForm((current) => ({
-      ...current,
-      shifts: response.shifts
-    }));
-    setMessage("Pengaturan jam kerja berhasil disimpan.");
+    try {
+      setSaving(true);
+      setError("");
+      setMessage("");
+      const payload = {
+        ...form,
+        shifts: form.type === "multi" ? form.shifts : []
+      };
+      const response = await api.put("/admin/settings/work", payload);
+      setForm((current) => ({
+        ...current,
+        ...response.workSchedule,
+        shifts: response.shifts?.length ? response.shifts : [createShift()]
+      }));
+      setMessage("Pengaturan jam kerja berhasil disimpan.");
+    } catch (saveError) {
+      setError(saveError.message || "Gagal menyimpan pengaturan jam kerja.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (error && !form) {
+    return <div className="rounded-3xl bg-rose-50 p-6 text-sm text-rose-700 shadow-panel">{error}</div>;
   }
 
   if (!form) {
@@ -70,12 +105,16 @@ export function WorkSettingsPage() {
           <button
             type="button"
             onClick={saveChanges}
-            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-medium text-white"
+            disabled={saving}
+            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-medium text-white disabled:opacity-60"
           >
-            Simpan Perubahan
+            {saving ? "Menyimpan..." : "Simpan Perubahan"}
           </button>
         }
       >
+        {error ? <div className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
+        {message ? <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
+
         <div className="grid gap-6 xl:grid-cols-2">
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
@@ -97,7 +136,7 @@ export function WorkSettingsPage() {
                 }`}
               >
                 <p className="font-semibold text-slate-900">Multi-shift</p>
-                <p className="mt-1 text-sm text-slate-500">Kelola minimal dua shift yang bisa diubah HRD.</p>
+                <p className="mt-1 text-sm text-slate-500">Kelola satu atau lebih shift aktif untuk operasional.</p>
               </button>
             </div>
 
@@ -154,7 +193,7 @@ export function WorkSettingsPage() {
             ) : (
               <div className="space-y-4">
                 {form.shifts.map((shift, index) => (
-                  <div key={`${shift.name}-${index}`} className="grid gap-3 rounded-3xl border border-slate-200 p-4 md:grid-cols-5">
+                  <div key={`${shift.name}-${index}`} className="grid gap-3 rounded-3xl border border-slate-200 p-4 md:grid-cols-6">
                     <input
                       className="rounded-2xl border border-slate-200 px-4 py-3"
                       placeholder="Nama shift"
@@ -185,11 +224,24 @@ export function WorkSettingsPage() {
                       value={shift.earlyLeaveToleranceMinutes}
                       onChange={(event) => updateShift(index, "earlyLeaveToleranceMinutes", Number(event.target.value))}
                     />
+                    <button
+                      type="button"
+                      disabled={form.shifts.length === 1}
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          shifts: current.shifts.filter((_, shiftIndex) => shiftIndex !== index)
+                        }))
+                      }
+                      className="rounded-2xl border border-rose-200 px-4 py-3 text-sm font-medium text-rose-700 disabled:opacity-40"
+                    >
+                      Hapus
+                    </button>
                   </div>
                 ))}
                 <button
                   type="button"
-                  onClick={() => setForm((current) => ({ ...current, shifts: [...current.shifts, defaultShift] }))}
+                  onClick={() => setForm((current) => ({ ...current, shifts: [...current.shifts, createShift()] }))}
                   className="rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-700"
                 >
                   Tambah Shift
@@ -223,8 +275,6 @@ export function WorkSettingsPage() {
                 />
               </Field>
             </div>
-
-            {message ? <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
           </div>
 
           <div className="rounded-[2rem] bg-slate-950 p-6 text-white">
@@ -232,7 +282,7 @@ export function WorkSettingsPage() {
             <div className="mt-5 rounded-3xl bg-white/5 p-5">
               {form.type === "single" ? (
                 <>
-                  <p className="text-2xl font-semibold">{form.singleShift.name}</p>
+                  <p className="text-2xl font-semibold">{form.singleShift.name || "Shift Utama"}</p>
                   <p className="mt-3 text-slate-300">
                     {form.singleShift.startTime} - {form.singleShift.endTime}
                   </p>
@@ -255,7 +305,7 @@ export function WorkSettingsPage() {
               )}
             </div>
             <div className="mt-5 rounded-3xl bg-orange-400 px-5 py-4 text-sm text-slate-950">
-              Demo: perubahan hanya sementara, tetapi langsung dipakai API absensi tanpa restart server.
+              Perubahan langsung memengaruhi perhitungan status hadir, terlambat, dan alpha pada backend aktif.
             </div>
           </div>
         </div>

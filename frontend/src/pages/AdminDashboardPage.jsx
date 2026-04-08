@@ -5,10 +5,34 @@ import { api } from "../lib/api";
 
 export function AdminDashboardPage() {
   const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/admin/dashboard").then(setData);
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setError("");
+        const response = await api.get("/admin/dashboard");
+        if (!cancelled) {
+          setData(response);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError.message || "Gagal memuat dashboard admin.");
+        }
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  if (error) {
+    return <div className="rounded-3xl bg-rose-50 p-6 text-sm text-rose-700 shadow-panel">{error}</div>;
+  }
 
   if (!data) {
     return <div className="rounded-3xl bg-white p-6 shadow-panel">Memuat statistik kehadiran...</div>;
@@ -38,8 +62,8 @@ export function AdminDashboardPage() {
         <SectionCard title="Grafik Kehadiran Bulan Ini" description="Visual sederhana untuk present, late, atau status lain.">
           <div className="space-y-4">
             {chartData.length ? (
-              chartData.map((item) => (
-                <div key={`${item.date}-${item.label}`} className="grid gap-2 md:grid-cols-[56px_1fr_90px] md:items-center">
+              chartData.map((item, index) => (
+                <div key={`${item.date}-${item.label}-${index}`} className="grid gap-2 md:grid-cols-[56px_1fr_90px] md:items-center">
                   <span className="text-sm font-medium text-slate-500">#{item.date}</span>
                   <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                     <div
@@ -57,9 +81,7 @@ export function AdminDashboardPage() {
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                Belum ada data kehadiran bulan ini.
-              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">Belum ada data kehadiran bulan ini.</div>
             )}
           </div>
         </SectionCard>
@@ -75,7 +97,7 @@ export function AdminDashboardPage() {
               <p className="mt-1 text-3xl font-semibold text-slate-900">{data.totals.pendingOvertime}</p>
             </div>
             <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
-              Data dashboard diperbarui dari database lokal demo dan langsung mengikuti perubahan setting aktif.
+              Data dashboard diperbarui langsung dari database aktif dan mengikuti konfigurasi admin terbaru.
             </div>
           </div>
         </SectionCard>

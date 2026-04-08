@@ -49,6 +49,7 @@ export default function App() {
           </AdminGuard>
         }
       >
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="work-settings" element={<WorkSettingsPage />} />
         <Route path="location-settings" element={<GenericSettingsPage type="location-settings" />} />

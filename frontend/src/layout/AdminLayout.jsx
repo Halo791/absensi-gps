@@ -1,4 +1,17 @@
-import { Bell, BriefcaseBusiness, Building2, Clock3, FileClock, LayoutDashboard, LogOut, MapPinned, QrCode, Settings2, ShieldCheck, Users } from "lucide-react";
+import {
+  Bell,
+  BriefcaseBusiness,
+  Building2,
+  Clock3,
+  FileClock,
+  LayoutDashboard,
+  LogOut,
+  MapPinned,
+  QrCode,
+  Settings2,
+  ShieldCheck,
+  Users
+} from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { clearSession, getDemoNotice, getStoredUser } from "../lib/session";
 

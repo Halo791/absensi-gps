@@ -1,4 +1,14 @@
+import { clearSession } from "./session";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+
+export class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
 
 async function request(path, options = {}) {
   const token = localStorage.getItem("attendance-demo-token");
@@ -13,7 +23,13 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.message || "Permintaan gagal diproses.");
+    if (response.status === 401) {
+      clearSession();
+      if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        window.location.href = "/";
+      }
+    }
+    throw new ApiError(body.message || "Permintaan gagal diproses.", response.status);
   }
 
   const contentType = response.headers.get("Content-Type") || "";
