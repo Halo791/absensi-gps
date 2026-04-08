@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { clearSession, getDemoNotice } from "../lib/session";
 import { api } from "../lib/api";
 
@@ -10,6 +10,8 @@ export function EmployeePage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState("");
   const [leaveForm, setLeaveForm] = useState({
     type: "leave",
     startDate: formatDateInput(new Date()),
@@ -22,6 +24,8 @@ export function EmployeePage() {
     endTime: "20:00",
     reason: ""
   });
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
   function load() {
     api.get("/employee/dashboard").then(setData);
@@ -30,6 +34,49 @@ export function EmployeePage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    async function startCamera() {
+      if (!cameraActive) {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+        return;
+      }
+
+      try {
+        setCameraError("");
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user"
+          },
+          audio: false
+        });
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+      } catch (error) {
+        setCameraError("Kamera tidak bisa diakses. Pastikan izin kamera diaktifkan.");
+        setCameraActive(false);
+      }
+    }
+
+    startCamera();
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [cameraActive]);
 
   async function handleAttendance() {
     setMessage("");
@@ -133,8 +180,36 @@ export function EmployeePage() {
         </div>
 
         <div className="rounded-[2rem] bg-white p-6 shadow-panel">
-          <h2 className="text-xl font-semibold text-slate-900">Aksi HR Umum</h2>
-          <div className="mt-4 grid gap-5">
+          <h2 className="text-xl font-semibold text-slate-900">Mirror Camera QR</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Gunakan kamera depan dengan tampilan cermin agar lebih mudah mengarahkan QR ke posisi yang pas.
+          </p>
+          <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-slate-950">
+            {cameraActive ? (
+              <video ref={videoRef} autoPlay playsInline muted className="aspect-[4/3] w-full -scale-x-100 object-cover" />
+            ) : (
+              <div className="flex aspect-[4/3] items-center justify-center px-6 text-center text-sm text-slate-300">
+                Aktifkan mirror camera untuk preview kamera depan saat mengarahkan QR code.
+              </div>
+            )}
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setCameraActive((current) => !current)}
+              className="rounded-2xl bg-slate-950 px-4 py-3 font-medium text-white"
+            >
+              {cameraActive ? "Matikan Kamera" : "Aktifkan Mirror Camera"}
+            </button>
+          </div>
+          {cameraError ? <div className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{cameraError}</div> : null}
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] bg-white p-6 shadow-panel">
+        <h2 className="text-xl font-semibold text-slate-900">Aksi HR Umum</h2>
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5">
             <div className="rounded-3xl border border-slate-200 p-4">
               <p className="font-medium text-slate-900">Ajukan Izin / Sakit</p>
               <div className="mt-3 grid gap-3">
@@ -215,7 +290,7 @@ export function EmployeePage() {
               </div>
             </div>
           </div>
-          <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
             Reminder absen, validasi GPS, cutoff alpha, dan selfie wajib sudah disiapkan sebagai konfigurasi backend demo.
           </div>
         </div>
