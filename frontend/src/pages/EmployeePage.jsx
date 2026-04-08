@@ -154,7 +154,7 @@ export function EmployeePage() {
           <img
             src="/assets/logo-ingenio-nav.png"
             alt="Logo Ingenio"
-            className="h-14 w-14 rounded-2xl border border-[#f4c319]/30 bg-[#f4c319] object-cover"
+            className="h-14 w-14 rounded-2xl border border-[#f4c319]/30 bg-[#f4c319] p-1 object-contain"
           />
           <div>
             <p className="text-sm uppercase tracking-[0.28em] text-[#f4c319]">Ingenio Absensi</p>

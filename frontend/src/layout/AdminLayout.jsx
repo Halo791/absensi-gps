@@ -41,7 +41,7 @@ export function AdminLayout() {
               <img
                 src="/assets/logo-ingenio-nav.png"
                 alt="Logo Ingenio"
-                className="h-14 w-14 rounded-2xl border border-[#f4c319]/30 bg-[#f4c319] object-cover"
+                className="h-14 w-14 rounded-2xl border border-[#f4c319]/30 bg-[#f4c319] p-1 object-contain"
               />
               <div>
                 <p className="text-xs uppercase tracking-[0.32em] text-[#f4c319]">Admin Panel</p>
@@ -98,7 +98,7 @@ export function AdminLayout() {
               <img
                 src="/assets/logo-ingenio-nav.png"
                 alt="Logo Ingenio"
-                className="h-10 w-10 rounded-xl border border-[#f4c319]/30 bg-[#f4c319] object-cover"
+                className="h-10 w-10 rounded-xl border border-[#f4c319]/30 bg-[#f4c319] p-1 object-contain"
               />
               <Building2 size={18} />
               Identitas baru Ingenio Absensi

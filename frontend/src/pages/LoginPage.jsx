@@ -45,7 +45,7 @@ export function LoginPage() {
             <img
               src="/assets/logo-ingenio-nav.png"
               alt="Logo Ingenio"
-              className="h-16 w-16 rounded-2xl border border-[#f4c319]/30 bg-[#f4c319] object-cover"
+              className="h-16 w-16 rounded-2xl border border-[#f4c319]/30 bg-[#f4c319] p-1 object-contain"
             />
             <div>
               <div className="inline-flex rounded-full bg-[#f4c319]/20 px-4 py-2 text-sm text-[#ffe9a3]">
