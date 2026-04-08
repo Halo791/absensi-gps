@@ -5,6 +5,8 @@ import { api } from "../lib/api";
 export function EmployeePage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
 
   function load() {
     api.get("/employee/dashboard").then(setData);
@@ -15,17 +17,40 @@ export function EmployeePage() {
   }, []);
 
   async function handleAttendance() {
-    const now = new Date().toISOString();
-    const response = await api.post("/employee/attendance", {
-      timestamp: now,
-      lat: -6.2,
-      lng: 106.8166,
-      method: "gps_qr",
-      note: "Absen demo"
-    });
-    setMessage(`Absensi tersimpan dengan status ${response.status}.`);
-    load();
+    setMessage("");
+    if (!navigator.geolocation) {
+      setMessage("Geolocation tidak didukung oleh browser Anda.");
+      return;
+    }
+
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const response = await api.post("/employee/attendance", {
+            timestamp: new Date().toISOString(),
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            qrToken: data.qr.value,
+            method: data.qr.mode === "dynamic" ? "qr_dynamic" : "qr_static",
+            note: "Absensi perangkat"
+          });
+          setMessage(`Absensi berhasil! Status: ${response.status}`);
+          load();
+        } catch (error) {
+          setMessage(error.message || "Gagal melakukan absensi.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      (error) => {
+        setLoading(false);
+        setMessage("Gagal mendapatkan lokasi. Pastikan izin GPS aktif.");
+      },
+      { enableHighAccuracy: true }
+    );
   }
+
 
   async function submitLeave() {
     await api.post("/employee/leave-requests", {

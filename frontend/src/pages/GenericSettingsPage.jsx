@@ -42,11 +42,15 @@ export function GenericSettingsPage({ type }) {
     }
   }
 
-  const titles = {
-    "location-settings": "Pengaturan Lokasi & GPS",
-    "qr-settings": "Pengaturan QR Code",
-    "security-settings": "Pengaturan Keamanan",
-    "general-settings": "Pengaturan Umum"
+  const labelMap = {
+    latitude: "Latitude Kantor",
+    longitude: "Longitude Kantor",
+    radiusMeters: "Radius Maksimal (Meter)",
+    staticValue: "Isi QR Statis",
+    type: "Tipe (static/dynamic)",
+    companyName: "Nama Perusahaan",
+    timezone: "Zona Waktu",
+    requireSelfie: "Wajib Selfie"
   };
 
   return (
@@ -61,7 +65,8 @@ export function GenericSettingsPage({ type }) {
     >
       <div className="grid gap-4 md:grid-cols-2">
         {Object.entries(form).map(([key, value]) => (
-          <Field key={key} label={key}>
+          <Field key={key} label={labelMap[key] || key}>
+
             {typeof value === "boolean" ? (
               <select
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3"

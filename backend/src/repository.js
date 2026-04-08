@@ -323,14 +323,65 @@ export async function listEmployeeAttendance(userId) {
   return result.rows;
 }
 
-function deriveStatus(workSchedule, timestamp, isCheckOut = false) {
-  const shift = workSchedule.singleShift;
-  const target = dayjs(`${dayjs().format("YYYY-MM-DD")}T${isCheckOut ? shift.endTime : shift.startTime}:00`);
-  const actual = dayjs(timestamp);
-  const tolerance = isCheckOut ? shift.earlyLeaveToleranceMinutes : shift.lateToleranceMinutes;
-  const diff = isCheckOut ? target.diff(actual, "minute") : actual.diff(target, "minute");
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // metres
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  if (!isCheckOut && diff > workSchedule.cutoffMinutes) {
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in metres
+}
+
+function verifyQrToken(payload, settings) {
+  if (settings.type === "static") {
+    return payload === settings.staticValue;
+  }
+  
+  // Format: DEMO|YYYYMMDDHHmm|segment (30s)
+  // Allow ±1 segment tolerance for network delay
+  const now = dayjs();
+  const segments = [
+    { time: now, segment: Math.floor(now.second() / 30) },
+    { time: now.subtract(30, "second"), segment: Math.floor(now.subtract(30, "second").second() / 30) }
+  ];
+
+  const validTokens = segments.map(s => 
+    `DEMO|${s.time.format("YYYYMMDDHHmm")}|${s.segment}`
+  );
+
+  return validTokens.includes(payload);
+}
+
+function deriveStatus(workSchedule, timestamp, isCheckOut = false) {
+  const now = dayjs(timestamp);
+  let shift;
+
+  if (workSchedule.type === "single") {
+    shift = workSchedule.singleShift;
+  } else {
+    // Multi-shift: find shift where current time is closest to start/end
+    const shifts = workSchedule.shifts || [];
+    if (shifts.length === 0) return "present"; 
+
+    // Find the shift that is currently active or closest
+    shift = shifts.find(s => {
+      const start = dayjs(`${now.format("YYYY-MM-DD")}T${s.startTime}:00`);
+      const end = dayjs(`${now.format("YYYY-MM-DD")}T${s.endTime}:00`);
+      return now.isAfter(start.subtract(2, 'hour')) && now.isBefore(end.add(2, 'hour'));
+    }) || shifts[0];
+  }
+
+  const target = dayjs(`${now.format("YYYY-MM-DD")}T${isCheckOut ? shift.endTime : shift.startTime}:00`);
+  const tolerance = isCheckOut ? shift.earlyLeaveToleranceMinutes : shift.lateToleranceMinutes;
+  const diff = isCheckOut ? target.diff(now, "minute") : now.diff(target, "minute");
+
+  if (!isCheckOut && diff > (workSchedule.cutoffMinutes || 240)) {
     return "alpha";
   }
   if (diff > tolerance) {
@@ -339,8 +390,33 @@ function deriveStatus(workSchedule, timestamp, isCheckOut = false) {
   return isCheckOut ? "checked_out" : "present";
 }
 
+async function verifyAttendancePreconditions(payload, gpsSettings, qrSettings) {
+  // 1. Mandatory GPS Verification
+  if (gpsSettings.enabled !== false) {
+    const distance = calculateDistance(payload.lat, payload.lng, gpsSettings.latitude, gpsSettings.longitude);
+    if (distance > (gpsSettings.radiusMeters || 100)) {
+      throw new Error(`Anda berada di luar radius kantor (${Math.round(distance)}m). Jarak maksimal: ${gpsSettings.radiusMeters}m.`);
+    }
+  }
+
+  // 2. Mandatory QR Verification
+  if (qrSettings.enabled !== false) {
+    if (!verifyQrToken(payload.qrToken || payload.method, qrSettings)) {
+      throw new Error("Token QR tidak valid atau sudah kadaluarsa.");
+    }
+  }
+}
+
+
 export async function submitAttendance(userId, payload) {
-  const workSchedule = await getSetting("workSchedule");
+  const settings = await getSettingsBundle();
+  const workSchedule = settings.workSchedule;
+  const gpsSettings = settings.gps;
+  const qrSettings = settings.qr;
+
+  // Enforce mandatory verifications
+  await verifyAttendancePreconditions(payload, gpsSettings, qrSettings);
+
   const today = dayjs().format("YYYY-MM-DD");
   const existingResult = await query(
     `
@@ -371,8 +447,8 @@ export async function submitAttendance(userId, payload) {
         payload.lat,
         payload.lng,
         payload.method,
-        workSchedule.singleShift.name,
-        payload.note || "Check-in demo"
+        workSchedule.type === "single" ? workSchedule.singleShift.name : "Multi-Shift",
+        payload.note || "Check-in"
       ]
     );
     return insertResult.rows[0];
@@ -386,7 +462,7 @@ export async function submitAttendance(userId, payload) {
       WHERE id = $4
       RETURNING id, date::text AS date, check_in_time AS "checkInTime", check_out_time AS "checkOutTime", status, method
     `,
-    [payload.timestamp, status, payload.note || "Check-out demo", record.id]
+    [payload.timestamp, status, payload.note || "Check-out", record.id]
   );
   return updateResult.rows[0];
 }
