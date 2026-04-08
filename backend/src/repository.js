@@ -339,6 +339,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 function verifyQrToken(payload, settings) {
+  if (!settings) return false;
+  
   if (settings.type === "static") {
     return payload === settings.staticValue;
   }
@@ -358,9 +360,12 @@ function verifyQrToken(payload, settings) {
   return validTokens.includes(payload);
 }
 
+
 function deriveStatus(workSchedule, timestamp, isCheckOut = false) {
   const now = dayjs(timestamp);
   let shift;
+
+  if (!workSchedule) return "present";
 
   if (workSchedule.type === "single") {
     shift = workSchedule.singleShift;
@@ -377,8 +382,12 @@ function deriveStatus(workSchedule, timestamp, isCheckOut = false) {
     }) || shifts[0];
   }
 
+  if (!shift || !shift.startTime || !shift.endTime) {
+    return isCheckOut ? "checked_out" : "present";
+  }
+
   const target = dayjs(`${now.format("YYYY-MM-DD")}T${isCheckOut ? shift.endTime : shift.startTime}:00`);
-  const tolerance = isCheckOut ? shift.earlyLeaveToleranceMinutes : shift.lateToleranceMinutes;
+  const tolerance = (isCheckOut ? shift.earlyLeaveToleranceMinutes : shift.lateToleranceMinutes) || 0;
   const diff = isCheckOut ? target.diff(now, "minute") : now.diff(target, "minute");
 
   if (!isCheckOut && diff > (workSchedule.cutoffMinutes || 240)) {
@@ -390,32 +399,39 @@ function deriveStatus(workSchedule, timestamp, isCheckOut = false) {
   return isCheckOut ? "checked_out" : "present";
 }
 
+
 async function verifyAttendancePreconditions(payload, gpsSettings, qrSettings) {
   // 1. Mandatory GPS Verification
-  if (gpsSettings.enabled !== false) {
+  if (gpsSettings && gpsSettings.latitude !== undefined) {
     const distance = calculateDistance(payload.lat, payload.lng, gpsSettings.latitude, gpsSettings.longitude);
     if (distance > (gpsSettings.radiusMeters || 100)) {
       throw new Error(`Anda berada di luar radius kantor (${Math.round(distance)}m). Jarak maksimal: ${gpsSettings.radiusMeters}m.`);
     }
+  } else {
+    console.warn("GPS validation skipped: missing configuration.");
   }
 
   // 2. Mandatory QR Verification
-  if (qrSettings.enabled !== false) {
+  if (qrSettings && qrSettings.type) {
     if (!verifyQrToken(payload.qrToken || payload.method, qrSettings)) {
       throw new Error("Token QR tidak valid atau sudah kadaluarsa.");
     }
+  } else {
+    console.warn("QR validation skipped: missing configuration.");
   }
 }
 
 
+
 export async function submitAttendance(userId, payload) {
   const settings = await getSettingsBundle();
-  const workSchedule = settings.workSchedule;
+  const workSchedule = settings.workSchedule || { type: "single", singleShift: { startTime: "08:00", endTime: "17:00" } };
   const gpsSettings = settings.gps;
   const qrSettings = settings.qr;
 
   // Enforce mandatory verifications
   await verifyAttendancePreconditions(payload, gpsSettings, qrSettings);
+
 
   const today = dayjs().format("YYYY-MM-DD");
   const existingResult = await query(

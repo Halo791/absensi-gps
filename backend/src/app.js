@@ -376,7 +376,9 @@ app.post(
 
 app.use((error, _req, res, _next) => {
   console.error(error);
-  res.status(500).json({ message: "Terjadi kesalahan pada server." });
+  const status = error.message && (error.message.includes("radius") || error.message.includes("QR")) ? 400 : 500;
+  res.status(status).json({ message: error.message || "Terjadi kesalahan pada server." });
 });
+
 
 export { app };
