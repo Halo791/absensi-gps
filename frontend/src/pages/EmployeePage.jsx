@@ -150,7 +150,17 @@ export function EmployeePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <section className="rounded-[2rem] bg-slate-950 p-8 text-white shadow-panel">
-        <p className="text-sm uppercase tracking-[0.28em] text-blue-200">Mode Karyawan</p>
+        <div className="flex items-center gap-4">
+          <img
+            src="/assets/logo-ingenio-nav.png"
+            alt="Logo Ingenio"
+            className="h-14 w-14 rounded-2xl border border-[#f4c319]/30 bg-[#f4c319] object-cover"
+          />
+          <div>
+            <p className="text-sm uppercase tracking-[0.28em] text-[#f4c319]">Ingenio Absensi</p>
+            <p className="text-sm text-[#ffe9a3]">Mode Karyawan</p>
+          </div>
+        </div>
         <h1 className="mt-3 text-4xl font-semibold">{data.profile.name}</h1>
         <p className="mt-2 text-slate-300">{data.profile.department}</p>
         <div className="mt-5 rounded-3xl bg-white/10 p-4 text-sm text-blue-100">{getDemoNotice()}</div>

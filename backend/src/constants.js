@@ -17,7 +17,7 @@ export const DEMO_EMPLOYEE = {
 };
 
 export const DEFAULT_SETTINGS = {
-  companyName: "PT Demo Absensi Indonesia",
+  companyName: "Ingenio Absensi",
   timezone: "WIB",
   backendUrl: "http://localhost:4000",
   workSchedule: {
