@@ -12,6 +12,7 @@ export function EmployeePage() {
   const [loading, setLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
+  const [cameraMode, setCameraMode] = useState("user");
   const [leaveForm, setLeaveForm] = useState({
     type: "leave",
     startDate: formatDateInput(new Date()),
@@ -52,7 +53,7 @@ export function EmployeePage() {
         setCameraError("");
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: "user"
+            facingMode: cameraMode
           },
           audio: false
         });
@@ -76,7 +77,7 @@ export function EmployeePage() {
         streamRef.current = null;
       }
     };
-  }, [cameraActive]);
+  }, [cameraActive, cameraMode]);
 
   async function handleAttendance() {
     setMessage("");
@@ -182,14 +183,40 @@ export function EmployeePage() {
         <div className="rounded-[2rem] bg-white p-6 shadow-panel">
           <h2 className="text-xl font-semibold text-slate-900">Mirror Camera QR</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Gunakan kamera depan dengan tampilan cermin agar lebih mudah mengarahkan QR ke posisi yang pas.
+            Pilih kamera depan atau belakang sesuai kebutuhan. Kamera depan tampil mirror agar lebih mudah diarahkan.
           </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setCameraMode("user")}
+              className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                cameraMode === "user" ? "bg-slate-950 text-white" : "border border-slate-200 text-slate-700"
+              }`}
+            >
+              Kamera Depan
+            </button>
+            <button
+              type="button"
+              onClick={() => setCameraMode("environment")}
+              className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                cameraMode === "environment" ? "bg-slate-950 text-white" : "border border-slate-200 text-slate-700"
+              }`}
+            >
+              Kamera Belakang
+            </button>
+          </div>
           <div className="mt-4 overflow-hidden rounded-[1.5rem] bg-slate-950">
             {cameraActive ? (
-              <video ref={videoRef} autoPlay playsInline muted className="aspect-[4/3] w-full -scale-x-100 object-cover" />
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`aspect-[4/3] w-full object-cover ${cameraMode === "user" ? "-scale-x-100" : ""}`}
+              />
             ) : (
               <div className="flex aspect-[4/3] items-center justify-center px-6 text-center text-sm text-slate-300">
-                Aktifkan mirror camera untuk preview kamera depan saat mengarahkan QR code.
+                Aktifkan kamera untuk preview QR. Gunakan kamera belakang untuk scan yang lebih natural, atau kamera depan untuk bantuan framing mirror.
               </div>
             )}
           </div>
