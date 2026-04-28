@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { AppError } from "./errors.js";
 
-export const isProduction = process.env.NODE_ENV === "production";
+export const isProduction =
+  process.env.NODE_ENV === "production" || process.env.CONTEXT === "production" || process.env.NETLIFY === "true";
 
 export const allowedOrigins = process.env.ALLOWED_ORIGIN
   ? process.env.ALLOWED_ORIGIN.split(",").map((item) => item.trim()).filter(Boolean)
