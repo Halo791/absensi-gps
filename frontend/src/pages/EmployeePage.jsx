@@ -10,6 +10,8 @@ export function EmployeePage() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [scanStatus, setScanStatus] = useState("");
+  const [qrConfirmed, setQrConfirmed] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [cameraMode, setCameraMode] = useState("user");
@@ -29,7 +31,11 @@ export function EmployeePage() {
   const streamRef = useRef(null);
 
   function load() {
-    api.get("/employee/dashboard").then(setData);
+    api.get("/employee/dashboard").then((payload) => {
+      setData(payload);
+      setQrConfirmed(false);
+      setScanStatus("");
+    });
   }
 
   useEffect(() => {
@@ -81,8 +87,20 @@ export function EmployeePage() {
 
   async function handleAttendance() {
     setMessage("");
+    setScanStatus("");
     if (!navigator.geolocation) {
       setMessage("Geolocation tidak didukung oleh browser Anda.");
+      return;
+    }
+
+    if (!cameraActive) {
+      setCameraActive(true);
+      setMessage("Kamera diaktifkan. Arahkan ke QR aktif, lalu klik lagi Scan QR & Absen.");
+      return;
+    }
+
+    if (!window.BarcodeDetector) {
+      setMessage("Browser Anda belum mendukung scan QR otomatis. Gunakan browser Chromium terbaru.");
       return;
     }
 
@@ -90,11 +108,35 @@ export function EmployeePage() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
+          if (!videoRef.current) {
+            throw new Error("Kamera belum siap. Coba tunggu sebentar lalu scan ulang.");
+          }
+
+          const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+          let scannedValue = "";
+          for (let attempt = 0; attempt < 24; attempt += 1) {
+            const codes = await detector.detect(videoRef.current);
+            if (codes.length) {
+              scannedValue = codes[0].rawValue || "";
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 125));
+          }
+
+          if (!scannedValue) {
+            throw new Error("QR tidak terdeteksi. Arahkan kamera ke QR aktif terlebih dahulu.");
+          }
+          if (scannedValue !== data.qr.value) {
+            throw new Error("QR yang dipindai tidak cocok dengan QR aktif.");
+          }
+
+          setQrConfirmed(true);
+          setScanStatus("QR berhasil dipindai.");
           const response = await api.post("/employee/attendance", {
             timestamp: new Date().toISOString(),
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-            qrToken: data.qr.value,
+            qrToken: scannedValue,
             method: data.qr.mode === "dynamic" ? "qr_dynamic" : "qr_static",
             note: "Absensi perangkat"
           });
@@ -170,10 +212,35 @@ export function EmployeePage() {
         <div className="rounded-[2rem] bg-white p-6 shadow-panel">
           <h2 className="text-xl font-semibold text-slate-900">Absen Hari Ini</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Simulasi scan QR + GPS. QR aktif: <strong>{data.qr.value}</strong>
+            Scan QR aktif + GPS. QR aktif: <strong>{data.qr.value}</strong>
           </p>
+          <div className="mt-4 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center">
+              <div className="flex h-36 w-36 items-center justify-center rounded-2xl bg-white p-3 shadow-sm">
+                {data.qr.image ? (
+                  <img src={data.qr.image} alt="QR aktif" className="h-full w-full object-contain" />
+                ) : (
+                  <div className="text-center text-xs text-slate-400">QR image tidak tersedia</div>
+                )}
+              </div>
+              <div className="text-sm text-slate-600">
+                <p className="font-medium text-slate-900">Langkah scan</p>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>Aktifkan kamera di panel kanan.</li>
+                  <li>Arahkan kamera ke QR aktif di layar ini atau perangkat lain.</li>
+                  <li>Klik <span className="font-medium">Scan QR & Absen</span> untuk menyimpan data.</li>
+                </ol>
+                {qrConfirmed ? <p className="mt-3 font-medium text-emerald-700">QR sudah terverifikasi.</p> : null}
+              </div>
+            </div>
+          </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <button type="button" onClick={handleAttendance} className="rounded-2xl bg-blue-600 px-4 py-3 font-medium text-white">
+            <button
+              type="button"
+              onClick={handleAttendance}
+              disabled={loading}
+              className="rounded-2xl bg-blue-600 px-4 py-3 font-medium text-white disabled:opacity-60"
+            >
               Scan QR & Absen
             </button>
             <button
@@ -239,6 +306,7 @@ export function EmployeePage() {
               {cameraActive ? "Matikan Kamera" : "Aktifkan Mirror Camera"}
             </button>
           </div>
+          {scanStatus ? <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{scanStatus}</div> : null}
           {cameraError ? <div className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{cameraError}</div> : null}
         </div>
       </section>

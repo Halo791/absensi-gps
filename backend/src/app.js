@@ -377,7 +377,7 @@ app.patch(
   })
 );
 
-app.get(
+  app.get(
   "/api/employee/dashboard",
   requireAuth,
   requireRole("employee"),
@@ -387,7 +387,7 @@ app.get(
       attendance: await listEmployeeAttendance(req.auth.sub),
       leaveRequests: await listLeaveRequests(req.auth.sub),
       overtimeRequests: await listOvertimeRequests(req.auth.sub),
-      qr: await getCurrentQrPayload(),
+      qr: await getCurrentQrCode(),
       settings: {
         workSchedule: await getSetting("workSchedule"),
         gps: await getSetting("gps"),
