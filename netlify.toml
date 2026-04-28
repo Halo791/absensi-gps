@@ -1,5 +1,5 @@
 [build]
-  command = "npm ci --workspaces && npm run build --workspace frontend"
+  command = "npm run build --workspace frontend"
   publish = "frontend/dist"
 
 [build.environment]
