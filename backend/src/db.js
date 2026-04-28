@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { schemaSql } from "./schema.js";
 
 const connectionString =
-  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/attendance_demo";
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/attendance_local";
 
 export const pool = new Pool({
   connectionString,

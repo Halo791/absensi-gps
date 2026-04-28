@@ -213,7 +213,7 @@ export function GenericSettingsPage({ type }) {
         <div className="mt-6 rounded-[2rem] bg-slate-950 p-6 text-white">
           <p className="text-sm uppercase tracking-[0.28em] text-blue-200">QR Aktif Saat Ini</p>
           <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center">
-            <img src={qrPreview.image} alt="QR code demo" className="h-44 w-44 rounded-3xl bg-white p-4" />
+            <img src={qrPreview.image} alt="QR code aktif" className="h-44 w-44 rounded-3xl bg-white p-4" />
             <div>
               <p className="text-lg font-semibold">{qrPreview.mode === "static" ? "QR Statis" : "QR Dinamis"}</p>
               <p className="mt-2 text-sm text-slate-300 break-all">{qrPreview.value}</p>

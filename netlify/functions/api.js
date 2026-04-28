@@ -1,6 +1,6 @@
 import serverless from "serverless-http";
 import { app } from "../../backend/src/app.js";
-import { ensureDemoData } from "../../backend/src/bootstrap.js";
+import { ensureInitialData } from "../../backend/src/bootstrap.js";
 
 const proxy = serverless(app);
 
@@ -21,7 +21,7 @@ function normalizeApiPath(event) {
 }
 
 export async function handler(event, context) {
-  await ensureDemoData();
+  await ensureInitialData();
   const normalizedPath = normalizeApiPath(event);
   return proxy(
     {

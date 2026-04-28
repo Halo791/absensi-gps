@@ -13,7 +13,7 @@ import {
   Users
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { clearSession, getDemoNotice, getStoredUser } from "../lib/session";
+import { clearSession, getStoredUser } from "../lib/session";
 
 const menu = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -54,7 +54,7 @@ export function AdminLayout() {
           </div>
 
           <div className="mt-4 rounded-3xl border border-[#d62828]/30 bg-[#d62828]/15 p-4 text-sm text-[#ffe0e0]">
-            {getDemoNotice()}
+            Akses produksi aktif. Seluruh perubahan disimpan ke database perusahaan.
           </div>
 
           <nav className="mt-6 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -87,7 +87,7 @@ export function AdminLayout() {
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#f4c319]/25 px-4 py-3 text-sm font-medium text-[#f4c319] transition hover:bg-[#f4c319]/10"
             >
               <LogOut size={18} />
-              Logout Demo
+              Logout
             </button>
           </div>
         </aside>

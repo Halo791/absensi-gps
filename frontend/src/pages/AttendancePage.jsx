@@ -65,7 +65,7 @@ export function AttendancePage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "attendance-demo.csv";
+      link.download = "attendance-report.csv";
       document.body.appendChild(link);
       link.click();
       link.remove();

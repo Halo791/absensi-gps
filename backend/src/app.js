@@ -1,9 +1,9 @@
+import crypto from "crypto";
 import cors from "cors";
 import express from "express";
-import { allowedOrigins, isDemoMode } from "./config.js";
+import { allowedOrigins, isProduction } from "./config.js";
 import { AppError, isAppError } from "./errors.js";
 import { requireAuth, requireRole, signToken } from "./auth.js";
-import { DEMO_ADMIN, DEMO_EMPLOYEE, DEMO_NOTICE } from "./constants.js";
 import {
   createEmployee,
   createLeaveRequest,
@@ -31,7 +31,6 @@ import {
   updateOvertimeStatus,
   verifyPassword
 } from "./repository.js";
-import { resetDemoData } from "./seed.js";
 import {
   validateAttendancePayload,
   validateEmployeePayload,
@@ -58,6 +57,8 @@ app.use(express.json({ limit: "1mb" }));
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(self), geolocation=(self)");
   next();
 });
 
@@ -74,16 +75,8 @@ async function issueSession(user) {
   }
   return {
     token: signToken(user),
-    user: profile,
-    demoNotice: DEMO_NOTICE
+    user: profile
   };
-}
-
-function requireDemoMode(_req, _res, next) {
-  if (!isDemoMode) {
-    return next(new AppError("Endpoint demo dinonaktifkan di environment ini.", 404));
-  }
-  next();
 }
 
 function escapeCsvCell(value) {
@@ -97,7 +90,7 @@ function escapeCsvCell(value) {
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
-    mode: isDemoMode ? "demo" : "standard",
+    mode: isProduction ? "production" : "development",
     database: "postgres",
     runtime: "netlify-function-ready"
   });
@@ -106,11 +99,11 @@ app.get("/api/health", (_req, res) => {
 app.get("/api", (_req, res) => {
   res.json({
     ok: true,
-    message: "API attendance demo aktif.",
+    message: "API attendance aktif.",
     endpoints: {
       health: "/api/health",
-      demoAdmin: "/api/auth/demo/admin",
-      demoEmployee: "/api/auth/demo/employee"
+      login: "/api/auth/login",
+      me: "/api/me"
     }
   });
 });
@@ -124,35 +117,6 @@ app.post(
       return res.status(401).json({ message: "NIK atau password salah." });
     }
     return res.json(await issueSession(user));
-  })
-);
-
-app.post(
-  "/api/auth/demo/admin",
-  requireDemoMode,
-  asyncRoute(async (_req, res) => {
-    await resetDemoData();
-    const user = await getUserByNik(DEMO_ADMIN.nik);
-    return res.json(await issueSession(user));
-  })
-);
-
-app.post(
-  "/api/auth/demo/employee",
-  requireDemoMode,
-  asyncRoute(async (_req, res) => {
-    await resetDemoData();
-    const user = await getUserByNik(DEMO_EMPLOYEE.nik);
-    return res.json(await issueSession(user));
-  })
-);
-
-app.post(
-  "/api/demo/reset",
-  requireDemoMode,
-  asyncRoute(async (_req, res) => {
-    await resetDemoData();
-    return res.json({ message: "Data demo berhasil di-reset." });
   })
 );
 
@@ -292,9 +256,10 @@ app.patch(
   requireAuth,
   requireRole("admin"),
   asyncRoute(async (req, res) => {
-    const payload = validatePasswordResetPayload(req.body);
-    await resetEmployeePassword(Number(req.params.id), payload.password);
-    res.json({ message: "Password berhasil di-reset." });
+    const payload = req.body && Object.keys(req.body).length ? validatePasswordResetPayload(req.body) : null;
+    const password = payload?.password || `Tmp-${crypto.randomBytes(8).toString("base64url")}`;
+    await resetEmployeePassword(Number(req.params.id), password);
+    res.json({ message: "Password berhasil diperbarui.", password });
   })
 );
 
@@ -332,7 +297,7 @@ app.get(
       )
     ].join("\n");
     res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=attendance-demo.csv");
+    res.setHeader("Content-Disposition", "attachment; filename=attendance-report.csv");
     res.send(csv);
   })
 );
@@ -377,7 +342,7 @@ app.patch(
   })
 );
 
-  app.get(
+app.get(
   "/api/employee/dashboard",
   requireAuth,
   requireRole("employee"),

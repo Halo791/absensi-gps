@@ -1,22 +1,15 @@
-import { isDemoMode } from "./config.js";
-import { DEMO_ADMIN, DEMO_EMPLOYEE } from "./constants.js";
-import { migrate } from "./db.js";
-import { getUserByNik } from "./repository.js";
-import { resetDemoData } from "./seed.js";
+import { migrate, query } from "./db.js";
+import { seedInitialData } from "./seed.js";
 
 let bootPromise;
 
-export function ensureDemoData() {
+export function ensureInitialData() {
   if (!bootPromise) {
     bootPromise = (async () => {
       await migrate();
-      if (!isDemoMode) {
-        return;
-      }
-      const admin = await getUserByNik(DEMO_ADMIN.nik);
-      const employee = await getUserByNik(DEMO_EMPLOYEE.nik);
-      if (!admin || !employee) {
-        await resetDemoData();
+      const result = await query("SELECT COUNT(*)::int AS count FROM users");
+      if (result.rows[0].count === 0) {
+        await seedInitialData();
       }
     })();
   }

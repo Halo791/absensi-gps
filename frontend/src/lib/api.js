@@ -11,7 +11,7 @@ export class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
-  const token = localStorage.getItem("attendance-demo-token");
+  const token = localStorage.getItem("ingenio-token");
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",

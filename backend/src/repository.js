@@ -1,7 +1,9 @@
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import QRCode from "qrcode";
 import { query } from "./db.js";
+import { qrSecret } from "./config.js";
 
 function mapUser(row) {
   return row
@@ -291,10 +293,7 @@ export async function updateOvertimeStatus(id, status) {
 
 export async function getCurrentQrPayload() {
   const qr = await getSetting("qr");
-  const value =
-    qr.type === "static"
-      ? qr.staticValue
-      : `DEMO|${dayjs().format("YYYYMMDDHHmm")}|${Math.floor(dayjs().second() / 30)}`;
+  const value = qr.type === "static" ? qr.staticValue : createDynamicQrToken();
   return {
     value,
     mode: qr.type
@@ -338,26 +337,44 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c; // in metres
 }
 
+function createDynamicQrToken(offset = 0) {
+  const bucket = Math.floor(dayjs().valueOf() / 30000) + offset;
+  const message = `dynamic:${bucket}`;
+  const signature = crypto.createHmac("sha256", qrSecret).update(message).digest("base64url");
+  return `IGENIO:${bucket}:${signature}`;
+}
+
+function verifyDynamicQrToken(payload) {
+  const parts = String(payload).split(":");
+  if (parts.length !== 3 || parts[0] !== "IGENIO") {
+    return false;
+  }
+
+  const bucket = Number(parts[1]);
+  if (!Number.isInteger(bucket)) {
+    return false;
+  }
+
+  const signature = parts[2];
+  const currentBucket = Math.floor(dayjs().valueOf() / 30000);
+  const allowedBuckets = [currentBucket, currentBucket - 1];
+
+  return allowedBuckets.some((candidate) => {
+    const expected = crypto.createHmac("sha256", qrSecret).update(`dynamic:${candidate}`).digest("base64url");
+    const actualBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    return candidate === bucket && actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+  });
+}
+
 function verifyQrToken(payload, settings) {
   if (!settings) return false;
-  
+
   if (settings.type === "static") {
     return payload === settings.staticValue;
   }
-  
-  // Format: DEMO|YYYYMMDDHHmm|segment (30s)
-  // Allow ±1 segment tolerance for network delay
-  const now = dayjs();
-  const segments = [
-    { time: now, segment: Math.floor(now.second() / 30) },
-    { time: now.subtract(30, "second"), segment: Math.floor(now.subtract(30, "second").second() / 30) }
-  ];
 
-  const validTokens = segments.map(s => 
-    `DEMO|${s.time.format("YYYYMMDDHHmm")}|${s.segment}`
-  );
-
-  return validTokens.includes(payload);
+  return verifyDynamicQrToken(payload);
 }
 
 
@@ -401,23 +418,17 @@ function deriveStatus(workSchedule, timestamp, isCheckOut = false) {
 
 
 async function verifyAttendancePreconditions(payload, gpsSettings, qrSettings) {
-  // 1. Mandatory GPS Verification
   if (gpsSettings && gpsSettings.latitude !== undefined) {
     const distance = calculateDistance(payload.lat, payload.lng, gpsSettings.latitude, gpsSettings.longitude);
     if (distance > (gpsSettings.radiusMeters || 100)) {
       throw new Error(`Anda berada di luar radius kantor (${Math.round(distance)}m). Jarak maksimal: ${gpsSettings.radiusMeters}m.`);
     }
-  } else {
-    console.warn("GPS validation skipped: missing configuration.");
   }
 
-  // 2. Mandatory QR Verification
   if (qrSettings && qrSettings.type) {
     if (!verifyQrToken(payload.qrToken || payload.method, qrSettings)) {
       throw new Error("Token QR tidak valid atau sudah kadaluarsa.");
     }
-  } else {
-    console.warn("QR validation skipped: missing configuration.");
   }
 }
 

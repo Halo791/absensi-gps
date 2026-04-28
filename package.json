@@ -1,5 +1,5 @@
 {
-  "name": "attendance-demo-monorepo",
+  "name": "ingenio-absensi-monorepo",
   "private": true,
   "workspaces": [
     "frontend",

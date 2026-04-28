@@ -8,7 +8,7 @@ const emptyForm = {
   name: "",
   department: "",
   position: "",
-  password: "password123",
+  password: "",
   isActive: true
 };
 
@@ -59,8 +59,8 @@ export function EmployeesPage() {
       setBusyId(id);
       setMessage("");
       setError("");
-      await api.patch(`/admin/employees/${id}/reset-password`, { password: "password123" });
-      setMessage("Password karyawan di-reset ke password123.");
+      const response = await api.patch(`/admin/employees/${id}/reset-password`, {});
+      setMessage(`Password sementara dibuat: ${response.password}`);
     } catch (resetError) {
       setError(resetError.message || "Gagal mereset password.");
     } finally {
@@ -112,7 +112,7 @@ export function EmployeesPage() {
         {loading ? (
           <div className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">Memuat daftar karyawan...</div>
         ) : employees.length === 0 ? (
-          <div className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">Belum ada karyawan selain akun demo.</div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">Belum ada data karyawan.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
@@ -210,9 +210,11 @@ export function EmployeesPage() {
           </Field>
           <Field label="Password Awal">
             <input
+              type="password"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3"
               value={form.password}
               onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+              placeholder="Masukkan password awal"
             />
           </Field>
           <Field label="Status Akun">

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { clearSession, getDemoNotice } from "../lib/session";
+import { clearSession } from "../lib/session";
 import { api } from "../lib/api";
 
 function formatDateInput(date) {
@@ -33,7 +33,6 @@ export function EmployeePage() {
   function load() {
     api.get("/employee/dashboard").then((payload) => {
       setData(payload);
-      setQrConfirmed(false);
       setScanStatus("");
     });
   }
@@ -200,19 +199,21 @@ export function EmployeePage() {
           />
           <div>
             <p className="text-sm uppercase tracking-[0.28em] text-[#f4c319]">Ingenio Absensi</p>
-            <p className="text-sm text-[#ffe9a3]">Mode Karyawan</p>
+            <p className="text-sm text-[#ffe9a3]">Portal Karyawan</p>
           </div>
         </div>
         <h1 className="mt-3 text-4xl font-semibold">{data.profile.name}</h1>
         <p className="mt-2 text-slate-300">{data.profile.department}</p>
-        <div className="mt-5 rounded-3xl bg-white/10 p-4 text-sm text-blue-100">{getDemoNotice()}</div>
+        <div className="mt-5 rounded-3xl bg-white/10 p-4 text-sm text-blue-100">
+          Absensi tersambung ke GPS, QR, dan validasi server.
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-[2rem] bg-white p-6 shadow-panel">
           <h2 className="text-xl font-semibold text-slate-900">Absen Hari Ini</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Scan QR aktif + GPS. QR aktif: <strong>{data.qr.value}</strong>
+            Scan QR aktif + GPS. QR diperbarui otomatis sesuai jadwal.
           </p>
           <div className="mt-4 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -396,7 +397,7 @@ export function EmployeePage() {
             </div>
           </div>
           <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
-            Reminder absen, validasi GPS, cutoff alpha, dan selfie wajib sudah disiapkan sebagai konfigurasi backend demo.
+            Reminder absen, validasi GPS, cutoff alpha, dan selfie wajib dikendalikan dari konfigurasi backend.
           </div>
         </div>
       </section>

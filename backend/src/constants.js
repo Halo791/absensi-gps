@@ -1,19 +1,10 @@
-export const DEMO_ADMIN = {
+export const DEFAULT_ADMIN = {
   nik: "ADM001",
-  name: "Demo HRD",
+  name: "Administrator",
   department: "Human Resources",
   position: "HR Manager",
-  password: "demo123",
+  password: "admin123",
   role: "admin"
-};
-
-export const DEMO_EMPLOYEE = {
-  nik: "EMP001",
-  name: "Demo Karyawan",
-  department: "Operasional",
-  position: "Staff Operasional",
-  password: "karyawan123",
-  role: "employee"
 };
 
 export const DEFAULT_SETTINGS = {
@@ -41,7 +32,7 @@ export const DEFAULT_SETTINGS = {
   },
   qr: {
     type: "dynamic",
-    staticValue: "DEMO-ABSENSI-STATIC",
+    staticValue: "INGENIO-ABSENSI-STATIC",
     rotation: "30_seconds"
   },
   security: {
@@ -51,6 +42,3 @@ export const DEFAULT_SETTINGS = {
     minimumIosVersion: "15"
   }
 };
-
-export const DEMO_NOTICE =
-  "Demo mode aktif. Perubahan data hanya sementara dan bisa di-reset kapan saja.";

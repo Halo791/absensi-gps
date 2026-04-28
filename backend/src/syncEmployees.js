@@ -34,12 +34,12 @@ async function main() {
   for (const employee of EMPLOYEE_ROSTER) {
     await upsertEmployee(employee);
   }
-  console.log(`Berhasil sinkron ${EMPLOYEE_ROSTER.length} karyawan ke database.`);
+  console.log(`Berhasil sinkron ${EMPLOYEE_ROSTER.length} akun karyawan ke database.`);
 }
 
 main()
   .catch((error) => {
-    console.error("Gagal sinkron karyawan:", error);
+    console.error("Gagal sinkron akun karyawan:", error);
     process.exitCode = 1;
   })
   .finally(async () => {
