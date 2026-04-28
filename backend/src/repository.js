@@ -365,7 +365,7 @@ function getDateRange(startDate, endDate) {
 function formatClock(value) {
   if (!value) return "";
   const parsed = dayjs(value);
-  return parsed.isValid() ? parsed.format("HH:mm") : String(value).slice(0, 5);
+  return parsed.isValid() ? parsed.format("hh:mm A") : String(value).slice(0, 8);
 }
 
 function getPrimaryShift(workSchedule) {
@@ -466,28 +466,6 @@ export async function getAttendanceReportRows(filters = {}) {
 
   const now = dayjs();
   const reportRows = [];
-
-  for (const attendance of attendanceResult.rows) {
-    const row = {
-      date: attendance.date,
-      nik: attendance.nik,
-      name: attendance.name,
-      department: attendance.department,
-      checkInTime: attendance.checkInTime ? formatClock(attendance.checkInTime) : "-",
-      checkOutTime: attendance.checkOutTime ? formatClock(attendance.checkOutTime) : "-",
-      lateMinutes: attendance.checkInTime ? calculateLateMinutes(attendance.date, attendance.checkInTime, workSchedule) : "-",
-      status: attendance.status
-    };
-
-    if (filters.department && row.department !== filters.department) {
-      continue;
-    }
-    if (filters.status && row.status !== filters.status) {
-      continue;
-    }
-
-    reportRows.push(row);
-  }
 
   for (const date of dates) {
     const workingDay = isWorkingDay(date, workSchedule);
