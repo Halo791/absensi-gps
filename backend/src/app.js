@@ -9,11 +9,13 @@ import {
   createLeaveRequest,
   createOvertimeRequest,
   deleteEmployee,
+  formatAttendanceReportCsv,
   getCurrentQrCode,
   getCurrentQrPayload,
   getDashboardSummary,
   getSetting,
   getSettingsBundle,
+  getAttendanceReportRows,
   getUserById,
   getUserByNik,
   listAttendance,
@@ -77,14 +79,6 @@ async function issueSession(user) {
   return {
     user: profile
   };
-}
-
-function escapeCsvCell(value) {
-  const normalized = value == null ? "" : String(value);
-  if (!/[",\n]/.test(normalized)) {
-    return normalized;
-  }
-  return `"${normalized.replace(/"/g, '""')}"`;
 }
 
 app.get("/api/health", (_req, res) => {
@@ -284,26 +278,9 @@ app.get(
   requireAuth,
   requireRole("admin"),
   asyncRoute(async (req, res) => {
-    const rows = await listAttendance(req.query);
-    const header = "Tanggal,NIK,Nama,Departemen,Status,Check In,Check Out,Metode";
-    const csv = [
-      header,
-      ...rows.map((row) =>
-        [
-          row.date,
-          row.nik,
-          row.name,
-          row.department,
-          row.status,
-          row.checkInTime || "",
-          row.checkOutTime || "",
-          row.method
-        ]
-          .map(escapeCsvCell)
-          .join(",")
-      )
-    ].join("\n");
-    res.setHeader("Content-Type", "text/csv");
+    const rows = await getAttendanceReportRows(req.query);
+    const csv = formatAttendanceReportCsv(rows);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", "attachment; filename=attendance-report.csv");
     res.send(csv);
   })

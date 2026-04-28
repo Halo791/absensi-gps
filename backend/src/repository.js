@@ -322,6 +322,237 @@ export async function listEmployeeAttendance(userId) {
   return result.rows;
 }
 
+function getDayName(date) {
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dayjs(date).day()];
+}
+
+function isWorkingDay(date, workSchedule) {
+  if (!workSchedule) return true;
+  if (Array.isArray(workSchedule.holidays) && workSchedule.holidays.includes(date)) {
+    return false;
+  }
+  if (Array.isArray(workSchedule.workDays) && workSchedule.workDays.length > 0) {
+    return workSchedule.workDays.includes(getDayName(date));
+  }
+  return true;
+}
+
+function normalizeDate(value, fallback) {
+  const normalized = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+  return fallback;
+}
+
+function getDateRange(startDate, endDate) {
+  const dates = [];
+  let cursor = dayjs(startDate);
+  const last = dayjs(endDate);
+
+  while (cursor.isSame(last, "day") || cursor.isBefore(last, "day")) {
+    dates.push(cursor.format("YYYY-MM-DD"));
+    cursor = cursor.add(1, "day");
+  }
+
+  return dates;
+}
+
+function formatClock(value) {
+  if (!value) return "";
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("HH:mm") : String(value).slice(0, 5);
+}
+
+function getPrimaryShift(workSchedule) {
+  if (!workSchedule) return null;
+  if (workSchedule.type === "single") {
+    return workSchedule.singleShift || null;
+  }
+
+  const shifts = (workSchedule.shifts || []).filter((shift) => shift?.isActive !== false);
+  return shifts[0] || workSchedule.shifts?.[0] || null;
+}
+
+function getDailyCutoffTime(date, workSchedule) {
+  if (!workSchedule) {
+    return dayjs(`${date}T17:00:00`);
+  }
+
+  if (workSchedule.type === "single") {
+    const shift = workSchedule.singleShift || {};
+    const endTime = shift.endTime || "17:00";
+    const cutoffMinutes = Number(workSchedule.cutoffMinutes || 0);
+    return dayjs(`${date}T${endTime}:00`).add(cutoffMinutes, "minute");
+  }
+
+  const shifts = (workSchedule.shifts || []).filter((shift) => shift?.isActive !== false);
+  if (!shifts.length) {
+    return dayjs(`${date}T17:00:00`);
+  }
+
+  const latestEnd = shifts.reduce((latest, shift) => {
+    if (!latest) return shift;
+    return dayjs(`${date}T${shift.endTime}:00`).isAfter(dayjs(`${date}T${latest.endTime}:00`)) ? shift : latest;
+  }, null);
+  const cutoffMinutes = Number(workSchedule.cutoffMinutes || 0);
+  return dayjs(`${date}T${latestEnd.endTime}:00`).add(cutoffMinutes, "minute");
+}
+
+function calculateLateMinutes(date, checkInTime, workSchedule) {
+  const shift = getPrimaryShift(workSchedule);
+  if (!shift?.startTime || !checkInTime) return "";
+
+  const scheduledStart = dayjs(`${date}T${shift.startTime}:00`);
+  const actualStart = dayjs(checkInTime);
+  if (!actualStart.isValid()) return "";
+
+  const diff = actualStart.diff(scheduledStart, "minute");
+  return Math.max(diff, 0);
+}
+
+function escapeReportCell(value) {
+  const normalized = value == null ? "" : String(value);
+  if (!/[\";\n]/.test(normalized)) {
+    return normalized;
+  }
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+export async function getAttendanceReportRows(filters = {}) {
+  const settings = await getSettingsBundle();
+  const workSchedule = settings.workSchedule || null;
+  const today = dayjs().format("YYYY-MM-DD");
+  const startDate = normalizeDate(filters.startDate, normalizeDate(filters.endDate, today));
+  const endDate = normalizeDate(filters.endDate, normalizeDate(filters.startDate, today));
+  const rangeStart = dayjs(startDate).isAfter(dayjs(endDate), "day") ? endDate : startDate;
+  const rangeEnd = dayjs(startDate).isAfter(dayjs(endDate), "day") ? startDate : endDate;
+  const dates = getDateRange(rangeStart, rangeEnd);
+
+  const employeeResult = await query(
+    `
+      SELECT id, nik, name, department
+      FROM users
+      WHERE role = 'employee'
+      ORDER BY name ASC, nik ASC
+    `
+  );
+  const employees = employeeResult.rows;
+  const activeEmployeeIds = new Set(
+    (await query("SELECT id FROM users WHERE role = 'employee' AND is_active = true")).rows.map((row) => row.id)
+  );
+
+  const attendanceResult = await query(
+    `
+      SELECT a.id, a.date::text AS date, a.check_in_time AS "checkInTime", a.check_out_time AS "checkOutTime",
+             a.status, a.method, u.id AS "userId", u.nik, u.name, u.department
+      FROM attendance a
+      JOIN users u ON u.id = a.user_id
+      WHERE a.date BETWEEN $1 AND $2
+      ORDER BY a.date DESC, u.name ASC, a.id DESC
+    `,
+    [rangeStart, rangeEnd]
+  );
+
+  const attendanceMap = new Map();
+  for (const row of attendanceResult.rows) {
+    attendanceMap.set(`${row.date}:${row.userId}`, row);
+  }
+
+  const now = dayjs();
+  const reportRows = [];
+
+  for (const attendance of attendanceResult.rows) {
+    const row = {
+      date: attendance.date,
+      nik: attendance.nik,
+      name: attendance.name,
+      department: attendance.department,
+      checkInTime: attendance.checkInTime ? formatClock(attendance.checkInTime) : "-",
+      checkOutTime: attendance.checkOutTime ? formatClock(attendance.checkOutTime) : "-",
+      lateMinutes: attendance.checkInTime ? calculateLateMinutes(attendance.date, attendance.checkInTime, workSchedule) : "-",
+      status: attendance.status
+    };
+
+    if (filters.department && row.department !== filters.department) {
+      continue;
+    }
+    if (filters.status && row.status !== filters.status) {
+      continue;
+    }
+
+    reportRows.push(row);
+  }
+
+  for (const date of dates) {
+    const workingDay = isWorkingDay(date, workSchedule);
+    const cutoffTime = getDailyCutoffTime(date, workSchedule);
+    const alphaAllowed = workingDay && (dayjs(date).isBefore(now, "day") || now.isAfter(cutoffTime));
+
+    for (const employee of employees) {
+      if (!activeEmployeeIds.has(employee.id)) {
+        continue;
+      }
+      const attendance = attendanceMap.get(`${date}:${employee.id}`) || null;
+      const rowStatus = attendance?.status || (alphaAllowed ? "alpha" : null);
+
+      if (!rowStatus) {
+        continue;
+      }
+
+      const row = {
+        date,
+        nik: employee.nik,
+        name: employee.name,
+        department: employee.department,
+        checkInTime: attendance?.checkInTime ? formatClock(attendance.checkInTime) : "-",
+        checkOutTime: attendance?.checkOutTime ? formatClock(attendance.checkOutTime) : "-",
+        lateMinutes: attendance?.checkInTime ? calculateLateMinutes(date, attendance.checkInTime, workSchedule) : "-",
+        status: rowStatus
+      };
+
+      if (filters.department && row.department !== filters.department) {
+        continue;
+      }
+      if (filters.status && row.status !== filters.status) {
+        continue;
+      }
+
+      reportRows.push(row);
+    }
+  }
+
+  return reportRows.sort((left, right) => {
+    if (left.date === right.date) {
+      return left.name.localeCompare(right.name);
+    }
+    return left.date < right.date ? 1 : -1;
+  });
+}
+
+export function formatAttendanceReportCsv(rows) {
+  const header = ["Tanggal", "NIK", "Nama", "Departemen", "Masuk Pukul", "Pulang Pukul", "Telat (Menit)", "Status"];
+  const lines = [
+    "sep=;",
+    header.join(";"),
+    ...rows.map((row) =>
+      [
+        row.date,
+        row.nik,
+        row.name,
+        row.department,
+        row.checkInTime,
+        row.checkOutTime,
+        row.lateMinutes,
+        row.status
+      ]
+        .map(escapeReportCell)
+        .join(";")
+    )
+  ];
+  return lines.join("\n");
+}
+
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // metres
   const φ1 = (lat1 * Math.PI) / 180;

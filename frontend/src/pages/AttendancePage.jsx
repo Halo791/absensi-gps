@@ -89,12 +89,17 @@ export function AttendancePage() {
           disabled={exporting}
           className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
         >
-          {exporting ? "Mengunduh..." : "Ekspor CSV"}
+          {exporting ? "Mengunduh..." : "Ekspor CSV Delimited"}
         </button>
       }
     >
       {message ? <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
       {error ? <div className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
+      <div className="mb-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        CSV laporan memakai delimiter <span className="font-medium">;</span> dan otomatis menandai pegawai yang belum
+        absen sebagai <span className="font-medium">alpha</span> setelah jam pulang terlewati. Jika tanggal belum
+        diisi, laporan akan memakai hari ini.
+      </div>
 
       <div className="mb-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-5">
         <select
