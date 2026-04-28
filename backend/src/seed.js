@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { DEFAULT_SETTINGS, DEMO_ADMIN, DEMO_EMPLOYEE } from "./constants.js";
 import { closePool, migrate, query } from "./db.js";
 import { AppError } from "./errors.js";
+import { EMPLOYEE_ROSTER, normalizeEmployeeRecord } from "./employeeRoster.js";
 
 async function upsertSetting(key, value) {
   await query(
@@ -27,6 +28,25 @@ async function createUser(user) {
     [user.name, user.role, user.nik, passwordHash, user.department, user.position]
   );
   return result.rows[0].id;
+}
+
+async function createEmployeeRosterItem(user) {
+  const employee = normalizeEmployeeRecord(user);
+  const passwordHash = bcrypt.hashSync(employee.password, 10);
+  await query(
+    `
+      INSERT INTO users (name, role, nik, password_hash, department, position, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (nik) DO UPDATE SET
+        name = EXCLUDED.name,
+        role = EXCLUDED.role,
+        password_hash = EXCLUDED.password_hash,
+        department = EXCLUDED.department,
+        position = EXCLUDED.position,
+        is_active = EXCLUDED.is_active
+    `,
+    [employee.name, employee.role, employee.nik, passwordHash, employee.department, employee.position, employee.isActive]
+  );
 }
 
 async function seedAttendance(employeeId) {
@@ -76,6 +96,10 @@ export async function resetDemoData() {
 
   const adminId = await createUser(DEMO_ADMIN);
   const employeeId = await createUser(DEMO_EMPLOYEE);
+
+  for (const employee of EMPLOYEE_ROSTER) {
+    await createEmployeeRosterItem(employee);
+  }
 
   await upsertSetting("general", {
     companyName: DEFAULT_SETTINGS.companyName,

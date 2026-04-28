@@ -35,7 +35,7 @@ export function AdminLayout() {
   return (
     <div className="min-h-screen bg-transparent">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row">
-        <aside className="w-full rounded-[2rem] bg-[#17120b] p-6 text-white shadow-panel lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:w-80">
+        <aside className="flex w-full flex-col overflow-hidden rounded-[2rem] bg-[#17120b] p-6 text-white shadow-panel lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:w-80">
           <div className="rounded-3xl border border-[#f4c319]/20 bg-white/5 p-5">
             <div className="flex items-center gap-4">
               <img
@@ -57,7 +57,7 @@ export function AdminLayout() {
             {getDemoNotice()}
           </div>
 
-          <nav className="mt-6 space-y-2">
+          <nav className="mt-6 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
             {menu.map((item) => {
               const Icon = item.icon;
               return (
@@ -77,7 +77,7 @@ export function AdminLayout() {
             })}
           </nav>
 
-          <div className="mt-auto pt-6">
+          <div className="pt-6">
             <button
               type="button"
               onClick={() => {
