@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 const defaultFilters = {
   status: "",
   department: "",
+  name: "",
   startDate: "",
   endDate: ""
 };
@@ -30,6 +31,10 @@ export function AttendancePage() {
 
   const departments = useMemo(
     () => [...new Set(rows.map((row) => row.department).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [rows]
+  );
+  const employeeNames = useMemo(
+    () => [...new Set(rows.map((row) => row.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
     [rows]
   );
 
@@ -81,7 +86,7 @@ export function AttendancePage() {
   return (
     <SectionCard
       title="Riwayat Absen & Laporan"
-      description="Filter data absensi admin berdasarkan status, departemen, dan rentang tanggal."
+      description="Filter data absensi admin berdasarkan nama pegawai, status, departemen, dan rentang tanggal."
       actions={
         <button
           type="button"
@@ -101,7 +106,7 @@ export function AttendancePage() {
         diisi, laporan akan memakai hari ini.
       </div>
 
-      <div className="mb-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-5">
+      <div className="mb-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-6">
         <select
           className="rounded-2xl border border-slate-200 px-4 py-3"
           value={filters.status}
@@ -128,6 +133,18 @@ export function AttendancePage() {
             </option>
           ))}
         </select>
+        <input
+          className="rounded-2xl border border-slate-200 px-4 py-3"
+          value={filters.name}
+          onChange={(event) => setFilters((current) => ({ ...current, name: event.target.value }))}
+          list="employee-name-options"
+          placeholder="Nama pegawai"
+        />
+        <datalist id="employee-name-options">
+          {employeeNames.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
         <input
           type="date"
           className="rounded-2xl border border-slate-200 px-4 py-3"

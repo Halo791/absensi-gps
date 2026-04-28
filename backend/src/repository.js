@@ -210,6 +210,10 @@ export async function listAttendance(filters = {}) {
     params.push(filters.department);
     queryText += ` AND u.department = $${params.length}`;
   }
+  if (filters.name) {
+    params.push(`%${filters.name}%`);
+    queryText += ` AND u.name ILIKE $${params.length}`;
+  }
   if (filters.startDate) {
     params.push(filters.startDate);
     queryText += ` AND a.date >= $${params.length}`;
@@ -449,9 +453,10 @@ export async function getAttendanceReportRows(filters = {}) {
       FROM attendance a
       JOIN users u ON u.id = a.user_id
       WHERE a.date BETWEEN $1 AND $2
+        ${filters.name ? "AND u.name ILIKE $3" : ""}
       ORDER BY a.date DESC, u.name ASC, a.id DESC
     `,
-    [rangeStart, rangeEnd]
+    filters.name ? [rangeStart, rangeEnd, `%${filters.name}%`] : [rangeStart, rangeEnd]
   );
 
   const attendanceMap = new Map();
@@ -491,6 +496,9 @@ export async function getAttendanceReportRows(filters = {}) {
 
     for (const employee of employees) {
       if (!activeEmployeeIds.has(employee.id)) {
+        continue;
+      }
+      if (filters.name && !employee.name.toLowerCase().includes(String(filters.name).toLowerCase())) {
         continue;
       }
       const attendance = attendanceMap.get(`${date}:${employee.id}`) || null;
