@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { saveSession } from "../lib/session";
@@ -9,6 +9,24 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get("/me")
+      .then((payload) => {
+        if (!cancelled && payload?.user) {
+          saveSession({ user: payload.user });
+          navigate(payload.user.role === "admin" ? "/admin/dashboard" : "/employee", { replace: true });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   async function submit(event) {
     event.preventDefault();
@@ -54,7 +72,7 @@ export function LoginPage() {
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
               <p className="text-sm text-[#ffe9a3]">Autentikasi</p>
-              <p className="mt-2 text-lg font-medium">JWT terenkripsi</p>
+              <p className="mt-2 text-lg font-medium">Sesi HttpOnly</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
               <p className="text-sm text-[#ffe9a3]">Absensi</p>

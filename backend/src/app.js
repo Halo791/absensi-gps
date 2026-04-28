@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import cors from "cors";
 import express from "express";
-import { allowedOrigins, isProduction } from "./config.js";
+import { allowedOrigins, getSessionCookieOptions, isProduction, sessionCookieName } from "./config.js";
 import { AppError, isAppError } from "./errors.js";
 import { requireAuth, requireRole, signToken } from "./auth.js";
 import {
@@ -50,7 +50,8 @@ const app = express();
 
 app.use(
   cors({
-    origin: allowedOrigins?.length ? allowedOrigins : true
+    origin: allowedOrigins?.length ? allowedOrigins : true,
+    credentials: true
   })
 );
 app.use(express.json({ limit: "1mb" }));
@@ -74,7 +75,6 @@ async function issueSession(user) {
     throw new AppError("Akun tidak aktif.", 403);
   }
   return {
-    token: signToken(user),
     user: profile
   };
 }
@@ -116,9 +116,16 @@ app.post(
     if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ message: "NIK atau password salah." });
     }
-    return res.json(await issueSession(user));
+    const session = await issueSession(user);
+    res.cookie(sessionCookieName, signToken(user), getSessionCookieOptions());
+    return res.json(session);
   })
 );
+
+app.post("/api/auth/logout", (_req, res) => {
+  res.clearCookie(sessionCookieName, { path: "/" });
+  res.status(204).send();
+});
 
 app.get(
   "/api/me",

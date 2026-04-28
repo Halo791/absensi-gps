@@ -246,7 +246,8 @@ export function EmployeePage() {
             </button>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
+                await api.post("/auth/logout").catch(() => {});
                 clearSession();
                 window.location.href = "/";
               }}

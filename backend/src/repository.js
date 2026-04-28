@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import QRCode from "qrcode";
 import { query } from "./db.js";
-import { qrSecret } from "./config.js";
+import { getQrSecret } from "./config.js";
 
 function mapUser(row) {
   return row
@@ -340,7 +340,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 function createDynamicQrToken(offset = 0) {
   const bucket = Math.floor(dayjs().valueOf() / 30000) + offset;
   const message = `dynamic:${bucket}`;
-  const signature = crypto.createHmac("sha256", qrSecret).update(message).digest("base64url");
+  const signature = crypto.createHmac("sha256", getQrSecret()).update(message).digest("base64url");
   return `IGENIO:${bucket}:${signature}`;
 }
 
@@ -360,7 +360,7 @@ function verifyDynamicQrToken(payload) {
   const allowedBuckets = [currentBucket, currentBucket - 1];
 
   return allowedBuckets.some((candidate) => {
-    const expected = crypto.createHmac("sha256", qrSecret).update(`dynamic:${candidate}`).digest("base64url");
+    const expected = crypto.createHmac("sha256", getQrSecret()).update(`dynamic:${candidate}`).digest("base64url");
     const actualBuffer = Buffer.from(signature);
     const expectedBuffer = Buffer.from(expected);
     return candidate === bucket && actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);

@@ -11,11 +11,10 @@ export class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
-  const token = localStorage.getItem("ingenio-token");
   const response = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers
     },
     ...options

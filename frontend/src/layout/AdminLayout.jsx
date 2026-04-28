@@ -13,6 +13,7 @@ import {
   Users
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { api } from "../lib/api";
 import { clearSession, getStoredUser } from "../lib/session";
 
 const menu = [
@@ -80,7 +81,8 @@ export function AdminLayout() {
           <div className="pt-6">
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
+                await api.post("/auth/logout").catch(() => {});
                 clearSession();
                 navigate("/");
               }}
