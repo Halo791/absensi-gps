@@ -101,9 +101,8 @@ export function AttendancePage() {
       {message ? <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
       {error ? <div className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
       <div className="mb-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-        Ekspor laporan sekarang berupa file <span className="font-medium">CSV</span> dengan format matriks per tanggal dan jam
-        <span className="font-medium">WIB (UTC+7)</span>. Pegawai yang belum absen tetap ditandai sebagai
-        <span className="font-medium">alpha</span>.
+        Ekspor laporan sekarang berupa file <span className="font-medium">CSV</span> dengan kolom tanggal, jam masuk,
+        jam pulang, telat, dan status. Format jam mengikuti <span className="font-medium">WIB (UTC+7)</span>.
       </div>
 
       <div className="mb-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-6">

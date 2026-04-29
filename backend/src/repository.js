@@ -596,46 +596,22 @@ export async function getAttendanceReportRows(filters = {}) {
 }
 
 export function formatAttendanceReportCsv(rows) {
-  const employeeMap = new Map();
-  const dates = [];
-
-  for (const row of rows) {
-    if (!employeeMap.has(row.nik)) {
-      employeeMap.set(row.nik, {
-        nik: row.nik,
-        name: row.name,
-        department: row.department,
-        attendanceByDate: new Map()
-      });
-    }
-
-    const employee = employeeMap.get(row.nik);
-    employee.attendanceByDate.set(row.date, row);
-
-    if (!dates.includes(row.date)) {
-      dates.push(row.date);
-    }
-  }
-
-  dates.sort();
-  const employees = [...employeeMap.values()].sort((left, right) => {
-    if (left.name === right.name) {
-      return String(left.nik).localeCompare(String(right.nik));
-    }
-    return left.name.localeCompare(right.name);
-  });
-
-  const header = ["NIK", "Nama", "Departemen", ...dates.map((date) => dayjs(date).format("DD/MM"))];
+  const header = ["Tanggal", "NIK", "Nama", "Departemen", "Masuk Pukul", "Pulang Pukul", "Telat (Menit)", "Status"];
   const lines = ["sep=;", header.map(escapeReportCell).join(";")];
 
-  for (const employee of employees) {
+  for (const row of rows) {
+    const statusLabel = String(row.status || "").replaceAll("_", " ").toUpperCase();
     lines.push(
       [
-        employee.nik,
-        employee.name,
-        employee.department || "-",
-        ...dates.map((date) => escapeReportCell(formatReportCell(employee.attendanceByDate.get(date))))
-      ].join(";")
+        row.date,
+        row.nik,
+        row.name,
+        row.department || "-",
+        formatWibLabel(row.checkInTimeRaw || row.checkInTime) || "-",
+        formatWibLabel(row.checkOutTimeRaw || row.checkOutTime) || "-",
+        row.lateMinutes === "-" || row.lateMinutes == null ? "-" : String(row.lateMinutes),
+        statusLabel
+      ].map(escapeReportCell).join(";")
     );
   }
 
