@@ -65,17 +65,16 @@ export function AttendancePage() {
     try {
       setExporting(true);
       setError("");
-      const csv = await api.get(`/admin/attendance/export.csv${buildQuery(filters)}`);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const blob = await api.download(`/admin/attendance/export.xlsx${buildQuery(filters)}`);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "attendance-report.csv";
+      link.download = "attendance-report.xlsx";
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      setMessage("Laporan CSV berhasil diunduh.");
+      setMessage("Laporan Excel berhasil diunduh.");
     } catch (exportError) {
       setError(exportError.message || "Gagal mengunduh laporan.");
     } finally {
@@ -94,16 +93,16 @@ export function AttendancePage() {
           disabled={exporting}
           className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
         >
-          {exporting ? "Mengunduh..." : "Ekspor CSV Delimited"}
+          {exporting ? "Mengunduh..." : "Ekspor XLSX Berwarna"}
         </button>
       }
     >
       {message ? <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div> : null}
       {error ? <div className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
       <div className="mb-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-        CSV laporan memakai delimiter <span className="font-medium">;</span> dan otomatis menandai pegawai yang belum
-        absen sebagai <span className="font-medium">alpha</span> setelah jam pulang terlewati. Jika tanggal belum
-        diisi, laporan akan memakai hari ini.
+        Ekspor laporan sekarang berupa file <span className="font-medium">.xlsx</span> dengan format matriks per tanggal, jam
+        <span className="font-medium">WIB (UTC+7)</span>, dan pewarnaan status. Pegawai yang belum absen ditandai sebagai
+        <span className="font-medium">alpha</span> merah, izin/sakit atau izin lainnya hijau, dan telat oranye.
       </div>
 
       <div className="mb-5 grid gap-3 rounded-3xl bg-slate-50 p-4 md:grid-cols-6">

@@ -1,16 +1,23 @@
 import "dotenv/config";
 import { Pool } from "pg";
+import { isProduction } from "./config.js";
 import { schemaSql } from "./schema.js";
 
-const connectionString =
-  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/attendance_local";
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString && isProduction) {
+  throw new Error("DATABASE_URL wajib diatur di environment production.");
+}
+
+const effectiveConnectionString =
+  connectionString || "postgresql://postgres:postgres@localhost:5432/attendance_local";
 
 export const pool = new Pool({
-  connectionString,
+  connectionString: effectiveConnectionString,
   ssl:
     process.env.DATABASE_SSL === "false"
       ? false
-      : connectionString.includes("sslmode=require")
+      : effectiveConnectionString.includes("sslmode=require")
         ? { rejectUnauthorized: false }
         : false
 });

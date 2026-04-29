@@ -9,7 +9,6 @@ import {
   createLeaveRequest,
   createOvertimeRequest,
   deleteEmployee,
-  formatAttendanceReportCsv,
   getCurrentQrCode,
   getCurrentQrPayload,
   getDashboardSummary,
@@ -33,6 +32,7 @@ import {
   updateOvertimeStatus,
   verifyPassword
 } from "./repository.js";
+import { buildAttendanceWorkbookXlsx } from "./reportWorkbook.js";
 import {
   validateAttendancePayload,
   validateEmployeePayload,
@@ -273,17 +273,26 @@ app.get(
   })
 );
 
+async function sendAttendanceReportXlsx(req, res) {
+  const rows = await getAttendanceReportRows(req.query);
+  const buffer = buildAttendanceWorkbookXlsx(rows);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", "attachment; filename=attendance-report.xlsx");
+  res.send(buffer);
+}
+
 app.get(
-  "/api/admin/attendance/export.csv",
+  "/api/admin/attendance/export.xlsx",
   requireAuth,
   requireRole("admin"),
-  asyncRoute(async (req, res) => {
-    const rows = await getAttendanceReportRows(req.query);
-    const csv = formatAttendanceReportCsv(rows);
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=attendance-report.csv");
-    res.send(csv);
-  })
+  asyncRoute(sendAttendanceReportXlsx)
+);
+
+app.get(
+  "/api/admin/attendance/export.xls",
+  requireAuth,
+  requireRole("admin"),
+  asyncRoute(sendAttendanceReportXlsx)
 );
 
 app.get(

@@ -368,6 +368,20 @@ function formatClock(value) {
   return parsed.isValid() ? parsed.format("hh:mm A") : String(value).slice(0, 8);
 }
 
+function formatWibClock(value) {
+  if (!value) return "";
+  const parsed = dayjs(value);
+  if (!parsed.isValid()) {
+    return String(value).slice(0, 5);
+  }
+  return parsed.utcOffset(7).format("HH:mm");
+}
+
+function formatWibLabel(value) {
+  const time = formatWibClock(value);
+  return time ? `${time} WIB (UTC+7)` : "";
+}
+
 function getPrimaryShift(workSchedule) {
   if (!workSchedule) return null;
   if (workSchedule.type === "single") {
@@ -421,6 +435,64 @@ function escapeReportCell(value) {
     return normalized;
   }
   return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function escapeXml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function toExcelDateTime(value) {
+  if (!value) return "";
+  const parsed = dayjs(value);
+  if (!parsed.isValid()) {
+    return "";
+  }
+  return parsed.utcOffset(7).format("YYYY-MM-DDTHH:mm:ss");
+}
+
+function formatReportCell(row) {
+  if (!row) return "";
+
+  if (row.status === "alpha") {
+    return "ALPHA";
+  }
+
+  if (row.status === "leave") {
+    return "IZIN";
+  }
+
+  const checkIn = formatWibClock(row.checkInTime);
+  const checkOut = formatWibClock(row.checkOutTime);
+  if (checkIn || checkOut) {
+    return `${formatWibLabel(row.checkInTime) || "-"} - ${formatWibLabel(row.checkOutTime) || "-"}`;
+  }
+
+  return String(row.status || "").replaceAll("_", " ").toUpperCase();
+}
+
+function getReportCellStyle(row) {
+  if (!row) {
+    return "";
+  }
+
+  if (row.status === "alpha") {
+    return "background:#f8d7da;color:#842029;font-weight:700;";
+  }
+
+  if (row.status === "leave") {
+    return "background:#d1e7dd;color:#0f5132;font-weight:700;";
+  }
+
+  if (row.status === "late" || (Number(row.lateMinutes) > 0 && row.status !== "alpha" && row.status !== "leave")) {
+    return "background:#ffe5b4;color:#8a4b00;font-weight:700;";
+  }
+
+  return "";
 }
 
 export async function getAttendanceReportRows(filters = {}) {
@@ -491,6 +563,8 @@ export async function getAttendanceReportRows(filters = {}) {
         nik: employee.nik,
         name: employee.name,
         department: employee.department,
+        checkInTimeRaw: attendance?.checkInTime || null,
+        checkOutTimeRaw: attendance?.checkOutTime || null,
         checkInTime: attendance?.checkInTime ? formatClock(attendance.checkInTime) : "-",
         checkOutTime: attendance?.checkOutTime ? formatClock(attendance.checkOutTime) : "-",
         lateMinutes: attendance?.checkInTime ? calculateLateMinutes(date, attendance.checkInTime, workSchedule) : "-",
@@ -517,26 +591,247 @@ export async function getAttendanceReportRows(filters = {}) {
 }
 
 export function formatAttendanceReportCsv(rows) {
-  const header = ["Tanggal", "NIK", "Nama", "Departemen", "Masuk Pukul", "Pulang Pukul", "Telat (Menit)", "Status"];
-  const lines = [
-    "sep=;",
-    header.join(";"),
-    ...rows.map((row) =>
+  const employeeMap = new Map();
+  const dates = [];
+
+  for (const row of rows) {
+    if (!employeeMap.has(row.nik)) {
+      employeeMap.set(row.nik, {
+        nik: row.nik,
+        name: row.name,
+        department: row.department,
+        attendanceByDate: new Map()
+      });
+    }
+
+    const employee = employeeMap.get(row.nik);
+    employee.attendanceByDate.set(row.date, row);
+
+    if (!dates.includes(row.date)) {
+      dates.push(row.date);
+    }
+  }
+
+  dates.sort();
+  const employees = [...employeeMap.values()].sort((left, right) => {
+    if (left.name === right.name) {
+      return String(left.nik).localeCompare(String(right.nik));
+    }
+    return left.name.localeCompare(right.name);
+  });
+
+  const header = ["NIK", "Nama", "Departemen", ...dates.map((date) => dayjs(date).format("DD/MM"))];
+  const lines = ["sep=;", header.map(escapeReportCell).join(";")];
+
+  for (const employee of employees) {
+    lines.push(
       [
-        row.date,
-        row.nik,
-        row.name,
-        row.department,
-        row.checkInTime,
-        row.checkOutTime,
-        row.lateMinutes,
-        row.status
-      ]
-        .map(escapeReportCell)
-        .join(";")
-    )
-  ];
+        employee.nik,
+        employee.name,
+        employee.department || "-",
+        ...dates.map((date) => escapeReportCell(formatReportCell(employee.attendanceByDate.get(date))))
+      ].join(";")
+    );
+  }
+
   return lines.join("\n");
+}
+
+export function formatAttendanceReportXls(rows) {
+  const employeeMap = new Map();
+  const dates = [];
+  const detailRows = [];
+
+  for (const row of rows) {
+    if (!employeeMap.has(row.nik)) {
+      employeeMap.set(row.nik, {
+        nik: row.nik,
+        name: row.name,
+        department: row.department,
+        attendanceByDate: new Map()
+      });
+    }
+
+    const employee = employeeMap.get(row.nik);
+    employee.attendanceByDate.set(row.date, row);
+    detailRows.push(row);
+
+    if (!dates.includes(row.date)) {
+      dates.push(row.date);
+    }
+  }
+
+  dates.sort();
+  const employees = [...employeeMap.values()].sort((left, right) => {
+    if (left.name === right.name) {
+      return String(left.nik).localeCompare(String(right.nik));
+    }
+    return left.name.localeCompare(right.name);
+  });
+
+  const columns = [
+    { width: 80 },
+    { width: 180 },
+    { width: 120 },
+    ...dates.map(() => ({ width: 70 }))
+  ];
+
+  const rowsXml = [
+    `<Row>
+      <Cell ss:StyleID="header"><Data ss:Type="String">NIK</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Nama</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Departemen</Data></Cell>
+      ${dates
+        .map((date) => `<Cell ss:StyleID="header"><Data ss:Type="String">${escapeXml(dayjs(date).format("DD/MM"))}</Data></Cell>`)
+        .join("")}
+    </Row>`,
+    ...employees.map((employee) => {
+      const cells = [
+        `<Cell><Data ss:Type="String">${escapeXml(employee.nik)}</Data></Cell>`,
+        `<Cell><Data ss:Type="String">${escapeXml(employee.name)}</Data></Cell>`,
+        `<Cell><Data ss:Type="String">${escapeXml(employee.department || "-")}</Data></Cell>`,
+        ...dates.map((date) => {
+          const row = employee.attendanceByDate.get(date);
+          const text = formatReportCell(row) || "";
+          const styleId =
+            row?.status === "alpha"
+              ? "alpha"
+              : row?.status === "leave"
+                ? "leave"
+                : row?.status === "late" || (Number(row?.lateMinutes) > 0 && row?.status !== "leave")
+                  ? "late"
+                  : "default";
+          return `<Cell ss:StyleID="${styleId}"><Data ss:Type="String">${escapeXml(text)}</Data></Cell>`;
+        })
+      ];
+      return `<Row>${cells.join("")}</Row>`;
+    })
+  ].join("");
+
+  const columnsXml = columns
+    .map((column) => `<Column ss:AutoFitWidth="1" ss:Width="${column.width}" />`)
+    .join("");
+
+  const detailRowsXml = [
+    `<Row>
+      <Cell ss:StyleID="header"><Data ss:Type="String">NIK</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Nama</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Departemen</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Tanggal</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Masuk Pukul (WIB UTC+7)</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Pulang Pukul (WIB UTC+7)</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Telat (Menit)</Data></Cell>
+      <Cell ss:StyleID="header"><Data ss:Type="String">Status</Data></Cell>
+    </Row>`,
+    ...detailRows.map((row) => {
+      const statusLabel = formatReportCell(row) || String(row.status || "").replaceAll("_", " ").toUpperCase();
+      const statusStyle =
+        row.status === "alpha"
+          ? "alpha"
+          : row.status === "leave"
+            ? "leave"
+            : row.status === "late" || Number(row.lateMinutes) > 0
+              ? "late"
+              : "default";
+      const checkInCell = row.checkInTimeRaw
+        ? `<Cell ss:StyleID="time-text"><Data ss:Type="String">${escapeXml(formatWibLabel(row.checkInTimeRaw))}</Data></Cell>`
+        : `<Cell ss:StyleID="default"><Data ss:Type="String"></Data></Cell>`;
+      const checkOutCell = row.checkOutTimeRaw
+        ? `<Cell ss:StyleID="time-text"><Data ss:Type="String">${escapeXml(formatWibLabel(row.checkOutTimeRaw))}</Data></Cell>`
+        : `<Cell ss:StyleID="default"><Data ss:Type="String"></Data></Cell>`;
+      return `<Row>
+        <Cell ss:StyleID="default"><Data ss:Type="String">${escapeXml(row.nik)}</Data></Cell>
+        <Cell ss:StyleID="default"><Data ss:Type="String">${escapeXml(row.name)}</Data></Cell>
+        <Cell ss:StyleID="default"><Data ss:Type="String">${escapeXml(row.department || "-")}</Data></Cell>
+        <Cell ss:StyleID="default"><Data ss:Type="String">${escapeXml(dayjs(row.date).format("DD/MM/YYYY"))}</Data></Cell>
+        ${checkInCell}
+        ${checkOutCell}
+        <Cell ss:StyleID="default"><Data ss:Type="Number">${Number(row.lateMinutes) || 0}</Data></Cell>
+        <Cell ss:StyleID="${statusStyle}"><Data ss:Type="String">${escapeXml(statusLabel)}</Data></Cell>
+      </Row>`;
+    })
+  ].join("");
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:html="http://www.w3.org/TR/REC-html40">
+  <Styles>
+    <Style ss:ID="header">
+      <Font ss:Bold="1" ss:Color="#111827" />
+      <Interior ss:Color="#E5E7EB" ss:Pattern="Solid" />
+      <Alignment ss:Horizontal="Center" ss:Vertical="Center" />
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+      </Borders>
+    </Style>
+    <Style ss:ID="default" ss:Name="Normal">
+      <Alignment ss:Vertical="Center" />
+      <Font ss:FontName="Arial" ss:Size="10" />
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+      </Borders>
+    </Style>
+    <Style ss:ID="alpha">
+      <Alignment ss:Vertical="Center" />
+      <Font ss:Bold="1" ss:Color="#842029" ss:FontName="Arial" ss:Size="10" />
+      <Interior ss:Color="#F8D7DA" ss:Pattern="Solid" />
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+      </Borders>
+    </Style>
+    <Style ss:ID="leave">
+      <Alignment ss:Vertical="Center" />
+      <Font ss:Bold="1" ss:Color="#0F5132" ss:FontName="Arial" ss:Size="10" />
+      <Interior ss:Color="#D1E7DD" ss:Pattern="Solid" />
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+      </Borders>
+    </Style>
+    <Style ss:ID="late">
+      <Alignment ss:Vertical="Center" />
+      <Font ss:Bold="1" ss:Color="#8A4B00" ss:FontName="Arial" ss:Size="10" />
+      <Interior ss:Color="#FFE5B4" ss:Pattern="Solid" />
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+      </Borders>
+    </Style>
+    <Style ss:ID="time-text">
+      <Alignment ss:Vertical="Center" />
+      <Font ss:FontName="Arial" ss:Size="10" />
+      <Borders>
+        <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+        <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB" />
+      </Borders>
+    </Style>
+  </Styles>
+  <Worksheet ss:Name="Attendance">
+    <Table>${columnsXml}${rowsXml}</Table>
+  </Worksheet>
+  <Worksheet ss:Name="Detail">
+    <Table>${detailRowsXml}</Table>
+  </Worksheet>
+</Workbook>`;
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {

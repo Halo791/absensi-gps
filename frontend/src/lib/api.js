@@ -32,14 +32,42 @@ async function request(path, options = {}) {
   }
 
   const contentType = response.headers.get("Content-Type") || "";
-  if (contentType.includes("text/csv")) {
+  if (
+    contentType.includes("text/csv") ||
+    contentType.includes("application/vnd.ms-excel") ||
+    contentType.includes("text/html") ||
+    contentType.includes("application/xml")
+  ) {
     return response.text();
   }
   return response.json();
 }
 
+async function download(path) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      clearSession();
+      if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        window.location.href = "/";
+      }
+    }
+    throw new ApiError(body.message || "Permintaan gagal diproses.", response.status);
+  }
+
+  return response.blob();
+}
+
 export const api = {
   get: (path) => request(path),
+  download,
   post: (path, body) =>
     request(path, {
       method: "POST",
