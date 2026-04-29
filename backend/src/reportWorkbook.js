@@ -249,6 +249,9 @@ function buildWorksheetXml(name, dimension, sheetData) {
 function buildStylesXml() {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1">
+    <numFmt numFmtId="164" formatCode="hh:mm &quot;WIB (UTC+7)&quot;"/>
+  </numFmts>
   <fonts count="2">
     <font><sz val="10"/><name val="Arial"/></font>
     <font><b/><sz val="10"/><name val="Arial"/><color rgb="FF111827"/></font>
