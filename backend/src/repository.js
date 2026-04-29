@@ -370,11 +370,16 @@ function formatClock(value) {
 
 function formatWibClock(value) {
   if (!value) return "";
-  const parsed = dayjs(value);
-  if (!parsed.isValid()) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
     return String(value).slice(0, 5);
   }
-  return parsed.utcOffset(7).format("HH:mm");
+  return new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(parsed);
 }
 
 function formatWibLabel(value) {
@@ -448,11 +453,11 @@ function escapeXml(value) {
 
 function toExcelDateTime(value) {
   if (!value) return "";
-  const parsed = dayjs(value);
-  if (!parsed.isValid()) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
     return "";
   }
-  return parsed.utcOffset(7).format("YYYY-MM-DDTHH:mm:ss");
+  return parsed.toISOString().replace("Z", "");
 }
 
 function formatReportCell(row) {
