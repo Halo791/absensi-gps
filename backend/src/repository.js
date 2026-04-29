@@ -466,10 +466,10 @@ function formatReportCell(row) {
     return "IZIN";
   }
 
-  const checkIn = formatWibClock(row.checkInTime);
-  const checkOut = formatWibClock(row.checkOutTime);
+  const checkIn = formatWibClock(row.checkInTimeRaw || row.checkInTime);
+  const checkOut = formatWibClock(row.checkOutTimeRaw || row.checkOutTime);
   if (checkIn || checkOut) {
-    return `${formatWibLabel(row.checkInTime) || "-"} - ${formatWibLabel(row.checkOutTime) || "-"}`;
+    return `${formatWibLabel(row.checkInTimeRaw || row.checkInTime) || "-"} - ${formatWibLabel(row.checkOutTimeRaw || row.checkOutTime) || "-"}`;
   }
 
   return String(row.status || "").replaceAll("_", " ").toUpperCase();
